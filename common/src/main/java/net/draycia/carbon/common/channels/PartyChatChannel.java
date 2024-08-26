@@ -103,4 +103,5 @@ public class PartyChatChannel extends ConfigChatChannel {
             party == null ? Component.text("null") : party.name()
         );
     }
+
 }
