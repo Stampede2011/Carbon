@@ -29,11 +29,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
+import net.draycia.carbon.api.CarbonChatProvider;
 import net.draycia.carbon.api.channels.ChatChannel;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.api.users.Party;
 import net.draycia.carbon.api.util.InventorySlot;
 import net.draycia.carbon.common.config.PrimaryConfig;
+import net.draycia.carbon.common.event.events.CarbonDisplayNameEvent;
 import net.draycia.carbon.common.messages.SourcedAudience;
 import net.kyori.adventure.identity.Identity;
 import net.kyori.adventure.key.Key;
@@ -232,6 +234,12 @@ public abstract class WrappedCarbonPlayer implements CarbonPlayer {
     // are retrieved from EmptyAudienceWithPointers
     @Override
     public Component displayName() {
+        final CarbonDisplayNameEvent displayNameEvent = new CarbonDisplayNameEvent(this, this.prepareDisplayName());
+        CarbonChatProvider.carbonChat().eventHandler().emit(displayNameEvent);
+        return displayNameEvent.name();
+    }
+
+    private Component prepareDisplayName() {
         final @Nullable Component nick = this.nickname();
         if (nick != null) {
             final PrimaryConfig.NicknameSettings nicknames = this.carbonPlayerCommon.configManager().primaryConfig().nickname();
