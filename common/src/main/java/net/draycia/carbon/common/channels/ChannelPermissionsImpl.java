@@ -55,4 +55,5 @@ public record ChannelPermissionsImpl(String permission, CarbonMessages messages)
     public boolean dynamic() {
         return false;
     }
+
 }

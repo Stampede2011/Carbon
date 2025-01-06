@@ -521,4 +521,5 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
     public ChannelPermissions permission(final String permission) {
         return new ChannelPermissionsImpl(permission, this.carbonMessages);
     }
+
 }

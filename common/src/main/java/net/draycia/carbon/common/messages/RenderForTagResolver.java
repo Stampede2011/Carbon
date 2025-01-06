@@ -115,4 +115,5 @@ public final class RenderForTagResolver implements TagResolver {
     public boolean has(final String name) {
         return name.equalsIgnoreCase(TAG_NAME);
     }
+
 }
