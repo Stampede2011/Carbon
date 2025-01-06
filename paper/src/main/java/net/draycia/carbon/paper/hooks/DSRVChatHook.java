@@ -33,6 +33,8 @@ import net.draycia.carbon.api.event.CarbonEventHandler;
 import net.draycia.carbon.api.event.events.CarbonChatEvent;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.common.channels.CarbonChannelRegistry;
+import net.draycia.carbon.common.config.ConfigManager;
+import net.draycia.carbon.common.integration.Integration;
 import net.draycia.carbon.common.messages.TagPermissions;
 import net.draycia.carbon.common.users.ConsoleCarbonPlayer;
 import net.draycia.carbon.common.users.WrappedCarbonPlayer;
@@ -42,33 +44,47 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.logging.log4j.Logger;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
-public final class DSRVChatHook implements ChatHook {
+public final class DSRVChatHook implements ChatHook, Integration {
 
     private final CarbonChannelRegistry channelRegistry;
     private final JavaPlugin plugin;
+    private final CarbonEventHandler eventHandler;
+    private final Config config;
 
     @Inject
     private DSRVChatHook(
-        final CarbonEventHandler events,
+        final CarbonEventHandler eventHandler,
         final CarbonChannelRegistry channelRegistry,
         final JavaPlugin plugin,
-        final Logger logger
+        final ConfigManager configManager
     ) {
         this.channelRegistry = channelRegistry;
+        this.eventHandler = eventHandler;
         this.plugin = plugin;
-        logger.info("DiscordSRV found! Enabling hook.");
+        this.config = this.config(configManager, configMeta());
+    }
+
+    @Override
+    public boolean eligible() {
+        return this.config.enabled && Bukkit.getPluginManager().isPluginEnabled("DiscordSRV");
+    }
+
+    @Override
+    public void register() {
+        DiscordSRV.getPlugin().getPluginHooks().add(this);
 
         final Cache<ImmutablePair<CarbonPlayer, ChatChannel>, Component> awaitingEvent = Caffeine.newBuilder()
             .expireAfterWrite(Duration.ofMillis(25))
             .build();
 
-        events.subscribe(CarbonChatEvent.class, 100, false, event -> {
+        this.eventHandler.subscribe(CarbonChatEvent.class, 100, false, event -> {
             final ChatChannel chatChannel = event.chatChannel();
             final CarbonPlayer carbonPlayer = event.sender();
 
@@ -140,6 +156,17 @@ public final class DSRVChatHook implements ChatHook {
         return GsonComponentSerializer.gson().deserialize(
             github.scarsz.discordsrv.dependencies.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().serialize(component)
         );
+    }
+
+    public static ConfigMeta configMeta() {
+        return Integration.configMeta("discordsrv", DSRVChatHook.Config.class);
+    }
+
+    @ConfigSerializable
+    public static final class Config {
+
+        boolean enabled = true;
+
     }
 
 }

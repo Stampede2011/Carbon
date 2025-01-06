@@ -25,7 +25,6 @@ import com.google.inject.Key;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
-import github.scarsz.discordsrv.DiscordSRV;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import net.draycia.carbon.api.CarbonServer;
@@ -43,9 +42,7 @@ import net.draycia.carbon.common.users.PlatformUserManager;
 import net.draycia.carbon.common.users.ProfileCache;
 import net.draycia.carbon.common.users.ProfileResolver;
 import net.draycia.carbon.paper.hooks.CarbonPAPIPlaceholders;
-import net.draycia.carbon.paper.hooks.DSRVChatHook;
 import net.draycia.carbon.paper.hooks.PAPIChatHook;
-import net.draycia.carbon.paper.listeners.DiscordMessageListener;
 import org.apache.logging.log4j.LogManager;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
@@ -106,8 +103,7 @@ public final class CarbonChatPaper extends CarbonChatInternal {
             );
         }
 
-        this.discoverDiscordHooks();
-        MiniPlaceholdersExpansion.register(this.injector());
+        this.registerPlaceholders();
 
         final Metrics metrics = new Metrics(this.plugin, BSTATS_PLUGIN_ID);
         metrics.addCustomChart(new SimplePie("user_manager_type", () -> this.injector().getInstance(ConfigManager.class).primaryConfig().storageType().name()));
@@ -122,16 +118,8 @@ public final class CarbonChatPaper extends CarbonChatInternal {
         this.checkVersion();
     }
 
-    private void discoverDiscordHooks() {
-        if (Bukkit.getPluginManager().isPluginEnabled("EssentialsDiscord")) {
-            final DiscordMessageListener discordMessageListener = this.injector().getInstance(DiscordMessageListener.class);
-            Bukkit.getPluginManager().registerEvents(discordMessageListener, this.plugin);
-            discordMessageListener.init();
-        }
-
-        if (Bukkit.getPluginManager().isPluginEnabled("DiscordSRV")) {
-            DiscordSRV.getPlugin().getPluginHooks().add(this.injector().getInstance(DSRVChatHook.class));
-        }
+    private void registerPlaceholders() {
+        MiniPlaceholdersExpansion.register(this.injector());
 
         if (papiLoaded()) {
             this.injector().getInstance(PAPIChatHook.class);

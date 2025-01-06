@@ -17,14 +17,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package net.draycia.carbon.paper.listeners;
+package net.draycia.carbon.paper.hooks;
 
 import com.google.inject.Inject;
 import java.util.HashMap;
 import java.util.Map;
 import net.draycia.carbon.api.CarbonChat;
+import net.draycia.carbon.common.config.ConfigManager;
+import net.draycia.carbon.common.integration.Integration;
 import net.essentialsx.api.v2.events.discord.DiscordMessageEvent;
-import net.essentialsx.api.v2.events.discord.DiscordRelayEvent;
 import net.essentialsx.api.v2.services.discord.DiscordService;
 import net.essentialsx.api.v2.services.discord.MessageType;
 import net.kyori.adventure.key.Key;
@@ -34,25 +35,27 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
-public final class DiscordMessageListener implements Listener {
+public final class EssXDiscordHook implements Listener, Integration {
 
     private final CarbonChat carbonChat;
     private final JavaPlugin plugin;
     private final Map<Key, MessageType> channelMessageTypes = new HashMap<>();
     private final Logger logger;
+    private final Config config;
 
     @Inject
-    private DiscordMessageListener(
+    private EssXDiscordHook(
         final JavaPlugin plugin,
         final CarbonChat carbonChat,
-        final Logger logger
+        final Logger logger,
+        final ConfigManager configManager
     ) {
         this.plugin = plugin;
         this.carbonChat = carbonChat;
         this.logger = logger;
-
-        this.logger.info("EssentialsXDiscord found! Enabling hook.");
+        this.config = this.config(configManager, configMeta());
     }
 
     // Minecraft -> Discord
@@ -75,11 +78,15 @@ public final class DiscordMessageListener implements Listener {
         event.setType(messageType);
     }
 
-    @EventHandler
-    public void onDiscordMessage(final DiscordRelayEvent event) {
+    @Override
+    public boolean eligible() {
+        return this.config.enabled && Bukkit.getPluginManager().isPluginEnabled("EssentialsDiscord");
     }
 
-    public void init() {
+    @Override
+    public void register() {
+        Bukkit.getPluginManager().registerEvents(this, this.plugin);
+
         final @Nullable DiscordService discord = Bukkit.getServicesManager().load(DiscordService.class);
 
         if (discord != null) {
@@ -93,6 +100,17 @@ public final class DiscordMessageListener implements Listener {
                 this.channelMessageTypes.put(key, channelMessageType);
             });
         }
+    }
+
+    public static ConfigMeta configMeta() {
+        return Integration.configMeta("essentialsx_discord", EssXDiscordHook.Config.class);
+    }
+
+    @ConfigSerializable
+    public static final class Config {
+
+        boolean enabled = true;
+
     }
 
 }
