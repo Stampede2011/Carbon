@@ -101,7 +101,8 @@ public class RadiusListener implements Listener {
             }
 
             for (final CarbonPlayer player : spyingPlayers) {
-                carbonMessages.radiusSpy(player, event.message());
+                carbonMessages.radiusSpy(player, event.sender().uuid(), event.chatChannel().key(), event.sender().displayName(),
+                    event.sender().username(), event.message());
             }
         });
     }

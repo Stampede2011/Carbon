@@ -29,6 +29,7 @@ import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.api.users.Party;
 import net.draycia.carbon.common.channels.PartyChatChannel;
 import net.draycia.carbon.common.messages.CarbonMessages;
+import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
@@ -45,10 +46,11 @@ public class PartyChatSpyHandler implements Listener {
 
             final @Nullable Party party = event.sender().party().get();
             final Set<UUID> members = party == null ? Set.of() : party.members();
+            final Component partyName = party == null ? Component.empty() : party.name();
 
             for (final CarbonPlayer player : server.players()) {
                 if (player.spying() && !members.contains(player.uuid())) {
-                    messages.partySpy(player, event.message());
+                    messages.partySpy(player, event.sender().uuid(), event.sender().displayName(), event.sender().username(), event.message(), partyName);
                 }
             }
         });

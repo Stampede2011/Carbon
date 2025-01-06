@@ -19,7 +19,9 @@
  */
 package net.draycia.carbon.common.messages;
 
+import java.util.UUID;
 import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.moonshine.annotation.Message;
 import net.kyori.moonshine.annotation.Placeholder;
@@ -39,7 +41,14 @@ public interface CarbonMessages {
     void emptyRecipients(final Audience audience);
 
     @Message("channel.radius.spy")
-    void radiusSpy(Audience audience, Component message);
+    void radiusSpy(
+        Audience audience,
+        @Placeholder UUID uuid,
+        @Placeholder Key channel,
+        @Placeholder("display_name") Component displayName,
+        @Placeholder String username,
+        @Placeholder Component message
+    );
 
     @Message("channel.not_found")
     void channelNotFound(final Audience audience);
@@ -560,7 +569,14 @@ public interface CarbonMessages {
     Component cannotUsePartyChannel(Audience audience);
 
     @Message("party.spy")
-    void partySpy(Audience audience, Component message);
+    void partySpy(
+        Audience audience,
+        @Placeholder UUID uuid,
+        @Placeholder("display_name") Component displayName,
+        @Placeholder String username,
+        @Placeholder Component message,
+        @Placeholder("party_name") Component partyName
+    );
 
     @Message("deletemessage.prefix")
     Component deleteMessagePrefix();
