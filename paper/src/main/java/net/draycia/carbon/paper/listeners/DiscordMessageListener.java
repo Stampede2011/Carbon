@@ -40,6 +40,7 @@ public final class DiscordMessageListener implements Listener {
     private final CarbonChat carbonChat;
     private final JavaPlugin plugin;
     private final Map<Key, MessageType> channelMessageTypes = new HashMap<>();
+    private final Logger logger;
 
     @Inject
     private DiscordMessageListener(
@@ -49,7 +50,9 @@ public final class DiscordMessageListener implements Listener {
     ) {
         this.plugin = plugin;
         this.carbonChat = carbonChat;
-        logger.info("EssentialsXDiscord found! Enabling hook.");
+        this.logger = logger;
+
+        this.logger.info("EssentialsXDiscord found! Enabling hook.");
     }
 
     // Minecraft -> Discord
@@ -82,7 +85,11 @@ public final class DiscordMessageListener implements Listener {
         if (discord != null) {
             this.carbonChat.channelRegistry().allKeys(key -> {
                 final MessageType channelMessageType = new MessageType(key.value());
-                discord.registerMessageType(this.plugin, channelMessageType);
+                try {
+                    discord.registerMessageType(this.plugin, channelMessageType);
+                } catch (final IllegalArgumentException exception) {
+                    this.logger.info("Skipping registration of message type [" + channelMessageType + "]");
+                }
                 this.channelMessageTypes.put(key, channelMessageType);
             });
         }
