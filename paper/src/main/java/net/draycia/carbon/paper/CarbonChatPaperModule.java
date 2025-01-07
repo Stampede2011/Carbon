@@ -41,8 +41,8 @@ import net.draycia.carbon.common.users.ProfileResolver;
 import net.draycia.carbon.common.util.CloudUtils;
 import net.draycia.carbon.paper.command.PaperCommander;
 import net.draycia.carbon.paper.command.PaperPlayerCommander;
-import net.draycia.carbon.paper.hooks.DSRVChatHook;
-import net.draycia.carbon.paper.hooks.EssXDiscordHook;
+import net.draycia.carbon.paper.integration.dsrv.DSRVIntegration;
+import net.draycia.carbon.paper.integration.essxd.EssXDIntegration;
 import net.draycia.carbon.paper.integration.fuuid.FactionsIntegration;
 import net.draycia.carbon.paper.integration.mcmmo.McmmoIntegration;
 import net.draycia.carbon.paper.integration.towny.TownyIntegration;
@@ -129,11 +129,11 @@ public final class CarbonChatPaperModule extends CarbonPlatformModule {
         integrations.addBinding().to(FactionsIntegration.class);
         configs.addBinding().toInstance(FactionsIntegration.configMeta());
 
-        integrations.addBinding().to(EssXDiscordHook.class);
-        configs.addBinding().toInstance(EssXDiscordHook.configMeta());
+        integrations.addBinding().to(EssXDIntegration.class);
+        configs.addBinding().toInstance(EssXDIntegration.configMeta());
 
-        integrations.addBinding().to(DSRVChatHook.class);
-        configs.addBinding().toInstance(DSRVChatHook.configMeta());
+        integrations.addBinding().to(DSRVIntegration.class);
+        configs.addBinding().toInstance(DSRVIntegration.configMeta());
     }
 
     private void configureListeners() {

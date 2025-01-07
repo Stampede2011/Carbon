@@ -17,7 +17,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package net.draycia.carbon.paper.hooks;
+package net.draycia.carbon.paper.integration.dsrv;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -33,8 +33,6 @@ import net.draycia.carbon.api.event.CarbonEventHandler;
 import net.draycia.carbon.api.event.events.CarbonChatEvent;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.common.channels.CarbonChannelRegistry;
-import net.draycia.carbon.common.config.ConfigManager;
-import net.draycia.carbon.common.integration.Integration;
 import net.draycia.carbon.common.messages.TagPermissions;
 import net.draycia.carbon.common.users.ConsoleCarbonPlayer;
 import net.draycia.carbon.common.users.WrappedCarbonPlayer;
@@ -44,39 +42,28 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
-public final class DSRVChatHook implements ChatHook, Integration {
+public final class DSRVListener implements ChatHook {
 
     private final CarbonChannelRegistry channelRegistry;
     private final JavaPlugin plugin;
     private final CarbonEventHandler eventHandler;
-    private final Config config;
 
     @Inject
-    private DSRVChatHook(
+    private DSRVListener(
         final CarbonEventHandler eventHandler,
         final CarbonChannelRegistry channelRegistry,
-        final JavaPlugin plugin,
-        final ConfigManager configManager
+        final JavaPlugin plugin
     ) {
         this.channelRegistry = channelRegistry;
         this.eventHandler = eventHandler;
         this.plugin = plugin;
-        this.config = this.config(configManager, configMeta());
     }
 
-    @Override
-    public boolean eligible() {
-        return this.config.enabled && Bukkit.getPluginManager().isPluginEnabled("DiscordSRV");
-    }
-
-    @Override
     public void register() {
         DiscordSRV.getPlugin().getPluginHooks().add(this);
 
@@ -114,7 +101,7 @@ public final class DSRVChatHook implements ChatHook, Integration {
             final @Nullable Player player = ((CarbonPlayerPaper) carbonPlayer).bukkitPlayer();
 
             if (player != null) {
-                DiscordSRV.getPlugin().processChatMessage(player, toDsrv(eventMessage), chatChannel.commandName(), event.cancelled(), null);
+                DiscordSRV.getPlugin().processChatMessage(player, this.toDsrv(eventMessage), chatChannel.commandName(), event.cancelled(), null);
             }
         });
 
@@ -137,36 +124,25 @@ public final class DSRVChatHook implements ChatHook, Integration {
         if (chatChannel == null) {
             this.plugin.getLogger().warning("Error sending message from Discord to Minecraft, no matching channel found for [" + channel + "]");
         } else {
-            ChannelUtils.broadcastMessageToChannel(fromDsrv(message), chatChannel);
+            ChannelUtils.broadcastMessageToChannel(this.fromDsrv(message), chatChannel);
         }
     }
 
-    @Override
-    public Plugin getPlugin() {
-        return this.plugin;
-    }
-
-    private static github.scarsz.discordsrv.dependencies.kyori.adventure.text.Component toDsrv(final Component component) {
+    private github.scarsz.discordsrv.dependencies.kyori.adventure.text.Component toDsrv(final Component component) {
         return github.scarsz.discordsrv.dependencies.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().deserialize(
             GsonComponentSerializer.gson().serialize(component)
         );
     }
 
-    private static Component fromDsrv(final github.scarsz.discordsrv.dependencies.kyori.adventure.text.Component component) {
+    private Component fromDsrv(final github.scarsz.discordsrv.dependencies.kyori.adventure.text.Component component) {
         return GsonComponentSerializer.gson().deserialize(
             github.scarsz.discordsrv.dependencies.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().serialize(component)
         );
     }
 
-    public static ConfigMeta configMeta() {
-        return Integration.configMeta("discordsrv", DSRVChatHook.Config.class);
-    }
-
-    @ConfigSerializable
-    public static final class Config {
-
-        boolean enabled = true;
-
+    @Override
+    public Plugin getPlugin() {
+        return null;
     }
 
 }

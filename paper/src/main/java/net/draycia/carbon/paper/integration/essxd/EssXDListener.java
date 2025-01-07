@@ -17,14 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-package net.draycia.carbon.paper.hooks;
+package net.draycia.carbon.paper.integration.essxd;
 
 import com.google.inject.Inject;
 import java.util.HashMap;
 import java.util.Map;
 import net.draycia.carbon.api.CarbonChat;
-import net.draycia.carbon.common.config.ConfigManager;
-import net.draycia.carbon.common.integration.Integration;
 import net.essentialsx.api.v2.events.discord.DiscordMessageEvent;
 import net.essentialsx.api.v2.services.discord.DiscordService;
 import net.essentialsx.api.v2.services.discord.MessageType;
@@ -35,27 +33,23 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
-public final class EssXDiscordHook implements Listener, Integration {
+public final class EssXDListener implements Listener {
 
     private final CarbonChat carbonChat;
     private final JavaPlugin plugin;
     private final Map<Key, MessageType> channelMessageTypes = new HashMap<>();
     private final Logger logger;
-    private final Config config;
 
     @Inject
-    private EssXDiscordHook(
+    private EssXDListener(
         final JavaPlugin plugin,
         final CarbonChat carbonChat,
-        final Logger logger,
-        final ConfigManager configManager
+        final Logger logger
     ) {
         this.plugin = plugin;
         this.carbonChat = carbonChat;
         this.logger = logger;
-        this.config = this.config(configManager, configMeta());
     }
 
     // Minecraft -> Discord
@@ -78,12 +72,6 @@ public final class EssXDiscordHook implements Listener, Integration {
         event.setType(messageType);
     }
 
-    @Override
-    public boolean eligible() {
-        return this.config.enabled && Bukkit.getPluginManager().isPluginEnabled("EssentialsDiscord");
-    }
-
-    @Override
     public void register() {
         Bukkit.getPluginManager().registerEvents(this, this.plugin);
 
@@ -95,22 +83,11 @@ public final class EssXDiscordHook implements Listener, Integration {
                 try {
                     discord.registerMessageType(this.plugin, channelMessageType);
                 } catch (final IllegalArgumentException exception) {
-                    this.logger.info("Skipping registration of message type [" + channelMessageType + "]");
+                    this.logger.info("Skipping registration of message type [{}]", channelMessageType);
                 }
                 this.channelMessageTypes.put(key, channelMessageType);
             });
         }
-    }
-
-    public static ConfigMeta configMeta() {
-        return Integration.configMeta("essentialsx_discord", EssXDiscordHook.Config.class);
-    }
-
-    @ConfigSerializable
-    public static final class Config {
-
-        boolean enabled = true;
-
     }
 
 }
