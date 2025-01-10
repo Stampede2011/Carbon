@@ -518,4 +518,5 @@ public class CarbonPlayerCommon implements CarbonPlayer, ForwardingAudience.Sing
     public void applyOptionalChatFilters(final boolean applyOptionalChatFilters) {
         this.applyOptionalChatFilters.set(applyOptionalChatFilters);
     }
+
 }
