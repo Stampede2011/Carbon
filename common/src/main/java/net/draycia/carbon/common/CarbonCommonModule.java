@@ -78,7 +78,6 @@ import net.draycia.carbon.common.users.UserManagerInternal;
 import net.draycia.carbon.common.users.db.DatabaseUserManager;
 import net.draycia.carbon.common.users.db.argument.BinaryUUIDArgumentFactory;
 import net.draycia.carbon.common.users.db.mapper.BinaryUUIDColumnMapper;
-import net.draycia.carbon.common.users.db.mapper.NativeUUIDColumnMapper;
 import net.draycia.carbon.common.users.json.JSONUserManager;
 import net.draycia.carbon.common.util.ConcurrentUtil;
 import net.draycia.carbon.common.util.Exceptions;
@@ -92,7 +91,6 @@ import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.jdbi.v3.core.h2.H2DatabasePlugin;
-import org.jdbi.v3.postgres.PostgresPlugin;
 import org.spongepowered.configurate.util.NamingSchemes;
 
 @DefaultQualifier(NonNull.class)
@@ -114,11 +112,6 @@ public final class CarbonCommonModule extends AbstractModule {
                 "queries/migrations/mysql",
                 jdbi -> jdbi.registerArgument(new BinaryUUIDArgumentFactory())
                     .registerColumnMapper(UUID.class, new BinaryUUIDColumnMapper())
-            );
-            case PSQL -> injector.getInstance(DatabaseUserManager.Factory.class).create(
-                "queries/migrations/postgresql",
-                jdbi -> jdbi.registerColumnMapper(UUID.class, new NativeUUIDColumnMapper())
-                    .installPlugin(new PostgresPlugin())
             );
             case H2 -> injector.getInstance(DatabaseUserManager.Factory.class).create(
                 "queries/migrations/h2",

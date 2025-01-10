@@ -248,7 +248,6 @@ public class PrimaryConfig {
     public enum StorageType {
         JSON,
         MYSQL,
-        PSQL,
         H2
     }
 

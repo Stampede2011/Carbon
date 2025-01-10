@@ -29,7 +29,10 @@ public final class SQLDrivers {
 
     public static void loadFrom(final ClassLoader loader) {
         ServiceLoader.load(Driver.class, loader).stream()
-            .forEach(provider -> forceInit(provider.type()));
+            .forEach(provider -> {
+                System.out.println("Loaded SQL driver: " + provider.type().getName());
+                forceInit(provider.type());
+            });
     }
 
     private static <T> Class<T> forceInit(final Class<T> klass) {

@@ -57,8 +57,6 @@ fun Task.standardRuntimeRelocations() {
   relocateDependency("net.i2p.crypto")
   relocateDependency("org.apache.commons.pool2")
   relocateDependency("org.jdbi")
-  relocateDependency("org.mariadb.jdbc")
-  relocateDependency("org.postgresql")
   relocateDependency("redis.clients.jedis")
   relocateDependency("org.flywaydb")
   relocateDependency("com.fasterxml")
@@ -81,6 +79,7 @@ fun Task.standardRelocations() {
   relocateDependency("ninja.egg82.messenger")
   relocateDependency("org.antlr")
   relocateDependency("com.electronwill")
+  relocateDependency("org.mariadb.jdbc")
 }
 
 fun Task.relocateCloud() {

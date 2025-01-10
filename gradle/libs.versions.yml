@@ -40,7 +40,7 @@ versions:
   luckPermsApi: 5.3
   essentialsx: 2.19.3
   discordsrv: 1.26.0
-  placeholderapi: 2.10.9
+  placeholderapi: 2.11.6
   miniplaceholders: 2.2.0
   jdbi: 3.41.1
   hikari: 5.0.1
