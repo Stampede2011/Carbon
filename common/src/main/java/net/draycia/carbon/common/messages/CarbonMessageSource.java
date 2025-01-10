@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -27,6 +27,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -98,7 +99,7 @@ public final class CarbonMessageSource implements IMessageSource<Audience, Strin
             if (sourceUrl.getProtocol().equals("jar")) {
                 final int exclamationIdx = sourceUrl.getPath().lastIndexOf('!');
                 if (exclamationIdx != -1) {
-                    sourceUrl = new URL(sourceUrl.getPath().substring(0, exclamationIdx));
+                    sourceUrl = URI.create(sourceUrl.getPath().substring(0, exclamationIdx)).toURL();
                 }
             }
             return Paths.get(sourceUrl.toURI());
@@ -210,14 +211,15 @@ public final class CarbonMessageSource implements IMessageSource<Audience, Strin
     }
 
     private String forPlayer(final String key, final CarbonPlayer player) {
-        if (player.locale() != null) {
-            final var properties = this.locales.get(player.locale());
+        final @Nullable Locale locale = player.locale();
+        if (locale != null) {
+            final var properties = this.locales.get(locale);
 
             if (properties != null) {
                 final var message = properties.getProperty(key);
 
                 if (message != null) {
-                    return message;
+                    return fixCrowdin(message);
                 }
             }
         }
@@ -236,7 +238,7 @@ public final class CarbonMessageSource implements IMessageSource<Audience, Strin
                 return key;
             }
 
-            return value;
+            return fixCrowdin(value);
         }
 
         return key;
@@ -310,6 +312,11 @@ public final class CarbonMessageSource implements IMessageSource<Audience, Strin
         localeString = localeString.replace("nb_NO", "no_NO");
 
         return Translator.parseLocale(localeString);
+    }
+
+    // Crowdin exports single quotes as double quotes
+    private static String fixCrowdin(final String s) {
+        return s.replace("''", "'");
     }
 
 }

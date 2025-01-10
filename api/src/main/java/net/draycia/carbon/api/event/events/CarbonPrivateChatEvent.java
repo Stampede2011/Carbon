@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -29,7 +29,7 @@ import org.checkerframework.framework.qual.DefaultQualifier;
 /**
  * Called whenever a player privately messages another player.
  *
- * @since 2.1.0
+ * @since 3.0.0
  */
 @DefaultQualifier(NonNull.class)
 public interface CarbonPrivateChatEvent extends CarbonEvent, Cancellable {
@@ -39,7 +39,7 @@ public interface CarbonPrivateChatEvent extends CarbonEvent, Cancellable {
      *
      * @param message the new message
      * @throws NullPointerException if message is null
-     * @since 2.1.0
+     * @since 3.0.0
      */
     void message(Component message);
 
@@ -47,7 +47,7 @@ public interface CarbonPrivateChatEvent extends CarbonEvent, Cancellable {
      * The message that will be sent.
      *
      * @return the message
-     * @since 2.1.0
+     * @since 3.0.0
      */
     Component message();
 
@@ -55,7 +55,7 @@ public interface CarbonPrivateChatEvent extends CarbonEvent, Cancellable {
      * The message sender.
      *
      * @return the sender of the message
-     * @since 2.1.0
+     * @since 3.0.0
      */
     CarbonPlayer sender();
 
@@ -63,7 +63,7 @@ public interface CarbonPrivateChatEvent extends CarbonEvent, Cancellable {
      * The message recipient.
      *
      * @return the recipient of the message
-     * @since 2.1.0
+     * @since 3.0.0
      */
     CarbonPlayer recipient();
 

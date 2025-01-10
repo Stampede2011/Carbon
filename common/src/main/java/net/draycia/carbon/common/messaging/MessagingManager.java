@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,6 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import net.draycia.carbon.api.CarbonChat;
 import net.draycia.carbon.api.CarbonServer;
 import net.draycia.carbon.api.users.CarbonPlayer;
@@ -40,6 +41,7 @@ import net.draycia.carbon.common.command.commands.WhisperCommand;
 import net.draycia.carbon.common.config.ConfigManager;
 import net.draycia.carbon.common.config.MessagingSettings;
 import net.draycia.carbon.common.messaging.packets.ChatMessagePacket;
+import net.draycia.carbon.common.messaging.packets.DisbandPartyPacket;
 import net.draycia.carbon.common.messaging.packets.InvalidatePartyInvitePacket;
 import net.draycia.carbon.common.messaging.packets.LocalPlayerChangePacket;
 import net.draycia.carbon.common.messaging.packets.LocalPlayersPacket;
@@ -62,8 +64,8 @@ import ninja.egg82.messenger.RedisMessagingService;
 import ninja.egg82.messenger.handler.AbstractServerMessagingHandler;
 import ninja.egg82.messenger.handler.MessagingHandler;
 import ninja.egg82.messenger.handler.MessagingHandlerImpl;
+import ninja.egg82.messenger.packets.AbstractPacket;
 import ninja.egg82.messenger.packets.MultiPacket;
-import ninja.egg82.messenger.packets.Packet;
 import ninja.egg82.messenger.packets.server.InitializationPacket;
 import ninja.egg82.messenger.packets.server.KeepAlivePacket;
 import ninja.egg82.messenger.packets.server.PacketVersionPacket;
@@ -73,21 +75,19 @@ import ninja.egg82.messenger.services.PacketService;
 import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
-import org.jetbrains.annotations.NotNull;
 
 @Singleton
 @DefaultQualifier(NonNull.class)
 public class MessagingManager {
 
-    private static final byte protocolVersion = 0;
+    private static final byte protocolVersion = 1;
 
     private final Logger logger;
     private final UUID serverId;
     private final @MonotonicNonNull ScheduledExecutorService scheduledExecutor;
+    private final @MonotonicNonNull MessagingService messagingService;
     private volatile @MonotonicNonNull PacketService packetService;
-    private final MessagingService messagingService;
 
     @Inject
     public MessagingManager(
@@ -111,7 +111,7 @@ public class MessagingManager {
             } else if (configManager.primaryConfig().messagingSettings().enabled()) {
                 logger.warn("Messaging services enabled in config, but messaging is not supported on proxies. The messaging service is used for the configuration where Carbon is installed on all backends instead of the proxy.");
             }
-            this.messagingService = EMPTY_MESSAGING_SERVICE;
+            this.messagingService = null;
             this.packetService = null;
             this.scheduledExecutor = null;
             return;
@@ -132,6 +132,7 @@ public class MessagingManager {
         PacketManager.register(PartyChangePacket.class, PartyChangePacket::new);
         PacketManager.register(PartyInvitePacket.class, PartyInvitePacket::new);
         PacketManager.register(InvalidatePartyInvitePacket.class, InvalidatePartyInvitePacket::new);
+        PacketManager.register(DisbandPartyPacket.class, DisbandPartyPacket::new);
 
         this.packetService = new PacketService(4, false, protocolVersion);
         this.scheduledExecutor = new ExceptionLoggingScheduledThreadPoolExecutor(4,
@@ -172,18 +173,25 @@ public class MessagingManager {
         }, 0, 250, TimeUnit.MILLISECONDS);
     }
 
-    public @Nullable PacketService packetService() {
-        return this.packetService;
-    }
-
     public PacketService requirePacketService() {
         return Objects.requireNonNull(this.packetService, "packetService");
     }
 
-    public void withPacketService(final Consumer<PacketService> consumer) {
+    private void withPacketService(final Consumer<PacketService> consumer) {
         if (this.packetService != null) {
             consumer.accept(this.packetService);
         }
+    }
+
+    public void queuePacketAndFlush(final Supplier<? extends AbstractPacket> makePacket) {
+        this.withPacketService(service -> {
+            service.queuePacket(makePacket.get());
+            service.flushQueue();
+        });
+    }
+
+    public void queuePacket(final Supplier<? extends AbstractPacket> makePacket) {
+        this.withPacketService(service -> service.queuePacket(makePacket.get()));
     }
 
     public void onShutdown() {
@@ -195,7 +203,9 @@ public class MessagingManager {
             this.packetService.shutdown();
             this.packetService = null;
         }
-        this.messagingService.close();
+        if (this.messagingService != null) {
+            this.messagingService.close();
+        }
     }
 
     private MessagingService initMessagingService(
@@ -284,32 +294,6 @@ public class MessagingManager {
                 map.put(player.uuid(), player.username());
             }
             this.packetService.queuePacket(this.packetFactory.localPlayersPacket(map));
-        }
-
-    }
-
-    private static final MessagingService EMPTY_MESSAGING_SERVICE = new EmptyMessagingService();
-
-    private static final class EmptyMessagingService implements MessagingService {
-
-        @Override
-        public String getName() {
-            return "";
-        }
-
-        @Override
-        public void close() {
-
-        }
-
-        @Override
-        public boolean isClosed() {
-            return true;
-        }
-
-        @Override
-        public void sendPacket(final @NotNull UUID messageId, final @NotNull Packet packet) {
-
         }
 
     }

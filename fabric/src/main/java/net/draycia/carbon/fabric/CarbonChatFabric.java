@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -33,12 +33,12 @@ import net.draycia.carbon.common.CarbonChatInternal;
 import net.draycia.carbon.common.PeriodicTasks;
 import net.draycia.carbon.common.channels.CarbonChannelRegistry;
 import net.draycia.carbon.common.command.ExecutionCoordinatorHolder;
+import net.draycia.carbon.common.integration.miniplaceholders.MiniPlaceholdersExpansion;
 import net.draycia.carbon.common.messages.CarbonMessages;
 import net.draycia.carbon.common.messaging.MessagingManager;
 import net.draycia.carbon.common.users.PlatformUserManager;
 import net.draycia.carbon.common.users.ProfileCache;
 import net.draycia.carbon.common.users.ProfileResolver;
-import net.draycia.carbon.fabric.command.DeleteMessageCommand;
 import net.draycia.carbon.fabric.listeners.FabricChatHandler;
 import net.draycia.carbon.fabric.listeners.FabricJoinQuitListener;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -46,10 +46,6 @@ import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.network.chat.ChatType;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.DefaultQualifier;
@@ -57,8 +53,6 @@ import org.checkerframework.framework.qual.DefaultQualifier;
 @DefaultQualifier(NonNull.class)
 @Singleton
 public final class CarbonChatFabric extends CarbonChatInternal {
-
-    public static ResourceKey<ChatType> CHAT_TYPE = ResourceKey.create(Registries.CHAT_TYPE, new ResourceLocation("carbon", "chat"));
 
     @Inject
     private CarbonChatFabric(
@@ -101,8 +95,6 @@ public final class CarbonChatFabric extends CarbonChatInternal {
         this.registerServerLifecycleListeners();
         this.registerPlayerStatusListeners();
 
-        this.injector().getInstance(DeleteMessageCommand.class).init();
-
         this.loadAddonEntrypoints();
     }
 
@@ -124,6 +116,7 @@ public final class CarbonChatFabric extends CarbonChatInternal {
     }
 
     private void registerServerLifecycleListeners() {
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> MiniPlaceholdersExpansion.register(this.injector()));
         ServerLifecycleEvents.SERVER_STARTED.register(server -> this.checkVersion());
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> this.shutdown());
     }

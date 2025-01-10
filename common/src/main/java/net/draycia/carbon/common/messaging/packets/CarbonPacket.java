@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -88,11 +88,11 @@ public abstract class CarbonPacket extends AbstractPacket {
     }
 
     protected final <E extends Enum<E>> void writeEnum(final E value, final ByteBuf buf) {
-        this.writeString(value.name(), buf);
+        this.writeVarInt(value.ordinal(), buf);
     }
 
     protected final <E extends Enum<E>> E readEnum(final ByteBuf buf, final Class<E> cls) {
-        return Enum.valueOf(cls, this.readString(buf));
+        return cls.getEnumConstants()[this.readVarInt(buf)];
     }
 
 }

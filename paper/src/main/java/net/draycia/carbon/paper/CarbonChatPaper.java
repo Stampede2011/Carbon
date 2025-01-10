@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,9 +21,10 @@ package net.draycia.carbon.paper;
 
 import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
-import github.scarsz.discordsrv.DiscordSRV;
+import com.google.inject.TypeLiteral;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import net.draycia.carbon.api.CarbonServer;
@@ -33,17 +34,15 @@ import net.draycia.carbon.common.PeriodicTasks;
 import net.draycia.carbon.common.channels.CarbonChannelRegistry;
 import net.draycia.carbon.common.command.ExecutionCoordinatorHolder;
 import net.draycia.carbon.common.config.ConfigManager;
+import net.draycia.carbon.common.config.MessagingSettings;
+import net.draycia.carbon.common.integration.miniplaceholders.MiniPlaceholdersExpansion;
 import net.draycia.carbon.common.messages.CarbonMessages;
 import net.draycia.carbon.common.messaging.MessagingManager;
 import net.draycia.carbon.common.users.PlatformUserManager;
 import net.draycia.carbon.common.users.ProfileCache;
 import net.draycia.carbon.common.users.ProfileResolver;
 import net.draycia.carbon.paper.hooks.CarbonPAPIPlaceholders;
-import net.draycia.carbon.paper.hooks.DSRVChatHook;
 import net.draycia.carbon.paper.hooks.PAPIChatHook;
-import net.draycia.carbon.paper.listeners.DiscordMessageListener;
-import net.draycia.carbon.paper.listeners.PaperChatListener;
-import net.draycia.carbon.paper.listeners.PaperPlayerJoinListener;
 import org.apache.logging.log4j.LogManager;
 import org.bstats.bukkit.Metrics;
 import org.bstats.charts.SimplePie;
@@ -57,10 +56,6 @@ import org.checkerframework.framework.qual.DefaultQualifier;
 @Singleton
 public final class CarbonChatPaper extends CarbonChatInternal {
 
-    private static final Set<Class<? extends Listener>> LISTENER_CLASSES = Set.of(
-        PaperChatListener.class,
-        PaperPlayerJoinListener.class
-    );
     private static final int BSTATS_PLUGIN_ID = 8720;
 
     private final JavaPlugin plugin;
@@ -100,31 +95,31 @@ public final class CarbonChatPaper extends CarbonChatInternal {
     void onEnable() {
         this.init();
 
-        for (final Class<? extends Listener> listenerClass : LISTENER_CLASSES) {
+        final Set<Listener> listeners = this.injector().getInstance(Key.get(new TypeLiteral<Set<Listener>>() {}));
+        for (final Listener listener : listeners) {
             this.plugin.getServer().getPluginManager().registerEvents(
-                this.injector().getInstance(listenerClass),
+                listener,
                 this.plugin
             );
         }
 
-        this.discoverDiscordHooks();
+        this.registerPlaceholders();
 
         final Metrics metrics = new Metrics(this.plugin, BSTATS_PLUGIN_ID);
         metrics.addCustomChart(new SimplePie("user_manager_type", () -> this.injector().getInstance(ConfigManager.class).primaryConfig().storageType().name()));
+        metrics.addCustomChart(new SimplePie("messaging", () -> {
+            final MessagingSettings settings = this.injector().getInstance(ConfigManager.class).primaryConfig().messagingSettings();
+            if (!settings.enabled()) {
+                return "disabled";
+            }
+            return settings.brokerType().name();
+        }));
 
         this.checkVersion();
     }
 
-    private void discoverDiscordHooks() {
-        if (Bukkit.getPluginManager().isPluginEnabled("EssentialsDiscord")) {
-            final DiscordMessageListener discordMessageListener = this.injector().getInstance(DiscordMessageListener.class);
-            Bukkit.getPluginManager().registerEvents(discordMessageListener, this.plugin);
-            discordMessageListener.init();
-        }
-
-        if (Bukkit.getPluginManager().isPluginEnabled("DiscordSRV")) {
-            DiscordSRV.getPlugin().getPluginHooks().add(this.injector().getInstance(DSRVChatHook.class));
-        }
+    private void registerPlaceholders() {
+        MiniPlaceholdersExpansion.register(this.injector());
 
         if (papiLoaded()) {
             this.injector().getInstance(PAPIChatHook.class);
@@ -138,10 +133,6 @@ public final class CarbonChatPaper extends CarbonChatInternal {
 
     public static boolean papiLoaded() {
         return Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI");
-    }
-
-    public static boolean miniPlaceholdersLoaded() {
-        return Bukkit.getPluginManager().isPluginEnabled("MiniPlaceholders");
     }
 
 }

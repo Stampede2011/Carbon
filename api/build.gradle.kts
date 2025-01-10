@@ -1,5 +1,6 @@
 plugins {
   id("carbon.publishing-conventions")
+  alias(libs.plugins.javadoc.links)
 }
 
 description = "API for interfacing with the CarbonChat Minecraft mod/plugin"

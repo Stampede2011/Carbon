@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -60,8 +60,8 @@ public class ClearChatSettings {
     public Component broadcast(final Component displayName, final String username) {
         return MiniMessage.miniMessage().deserialize(this.broadcast,
             TagResolver.builder()
-                .tag("display_name", Tag.inserting(displayName))
-                .tag("username", Tag.inserting(Component.text(username)))
+                .tag("display_name", Tag.selfClosingInserting(displayName))
+                .tag("username", Tag.selfClosingInserting(Component.text(username)))
                 .build());
     }
 

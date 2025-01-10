@@ -1,0 +1,153 @@
+[plugins]
+sponge-gradle = { id = "org.spongepowered.gradle.plugin", version = "2.2.0" }
+hangar-publish = { id = "io.papermc.hangar-publish-plugin", version = "0.1.2" }
+indra-publishing-sonatype = { id = "net.kyori.indra.publishing.sonatype", version.ref = "indra" }
+javadoc-links = { id = "org.incendo.cloud-build-logic.javadoc-links", version = "0.0.15" }
+
+[versions]
+indra = "3.1.3"
+shadow = "8.3.5"
+pluginYml = "0.5.3"
+mod-publish-plugin = "0.8.4"
+gremlin = "0.0.6"
+runTask = "2.3.1"
+
+adventure = "4.17.0"
+cloud = "2.0.0"
+cloudMinecraft = "2.0.0-SNAPSHOT"
+cloudModded = "2.0.0-SNAPSHOT"
+cloudSponge = "2.0.0-SNAPSHOT"
+configurate = "4.2.0-SNAPSHOT"
+checkerQual = "3.48.1"
+stylecheck = "0.2.1"
+bstats = "3.1.0"
+paperApi = "1.19.4-R0.1-SNAPSHOT"
+paperTrail = "1.0.1"
+foliaApi = "1.19.4-R0.1-SNAPSHOT"
+event = "1.0.0-SNAPSHOT"
+registry = "1.0.0-SNAPSHOT"
+kyoriMoonshine = "2.0.4"
+guice = "7.0.0"
+velocityApi = "3.3.0-SNAPSHOT"
+minecraft = "1.21.1"
+fabricLoader = "0.16.9"
+fabricApi = "0.105.0+1.21.1"
+fabricPermissionsApi = "0.3.1"
+adventurePlatformFabric = "5.14.2"
+luckPermsApi = "5.4"
+essentialsx = "2.20.1"
+discordsrv = "1.28.1"
+placeholderapi = "2.11.6"
+miniplaceholders = "2.2.3"
+jdbi = "3.47.0"
+hikari = "6.2.1"
+mysql = "9.1.0"
+flyway = "11.1.0"
+caffeine = "3.1.8"
+mariadb = "3.5.1"
+messenger = "1.1.0-SNAPSHOT"
+zstdjni = "1.5.6-9"
+jedis = "5.2.0"
+postgresql = "42.7.4"
+rabbitmq = "5.24.0"
+nats = "2.20.5"
+h2 = "2.3.232"
+towny = "0.100.3.0"
+mcmmo = "2.1.227"
+fuuid = "1.6.9.5-U0.6.35"
+
+# synced with version used by lowest supported mc (currently 1.20.6 on paper)
+gson = "2.10.1"
+guava = "32.1.2-jre"
+log4j = "2.22.1"
+netty = "4.1.97.Final"
+
+[libraries]
+indraCommon = { group = "net.kyori", name = "indra-common", version.ref = "indra" }
+indraLicenseHeader = { group = "net.kyori", name = "indra-licenser-spotless", version.ref = "indra" }
+shadow = { group = "com.gradleup.shadow", name = "shadow-gradle-plugin", version.ref = "shadow" }
+mod-publish-plugin = { module = "me.modmuss50:mod-publish-plugin", version.ref = "mod-publish-plugin" }
+gremlin-gradle = { group = "xyz.jpenilla", name = "gremlin-gradle", version.ref = "gremlin" }
+run-task = { module = "xyz.jpenilla:run-task", version.ref = "runTask" }
+
+adventureBom = { group = "net.kyori", name = "adventure-bom", version.ref = "adventure" }
+adventureApi = { group = "net.kyori", name = "adventure-api" }
+adventureTextSerializerGson = { group = "net.kyori", name = "adventure-text-serializer-gson" }
+adventureTextSerializerPlain = { group = "net.kyori", name = "adventure-text-serializer-plain" }
+adventureTextSerializerLegacy = { group = "net.kyori", name = "adventure-text-serializer-legacy" }
+adventureSerializerConfigurate4 = { group = "net.kyori", name = "adventure-serializer-configurate4", version.ref = "adventure" }
+minimessage = { group = "net.kyori", name = "adventure-text-minimessage", version.ref = "adventure" }
+adventurePlatformFabric = { group = "net.kyori", name = "adventure-platform-fabric", version.ref = "adventurePlatformFabric" }
+log4jBom = { group = "org.apache.logging.log4j", name = "log4j-bom", version.ref = "log4j" }
+log4jApi = { group = "org.apache.logging.log4j", name = "log4j-api" }
+event = { group = "com.seiama", name = "event-api", version.ref = "event" }
+registry = { group = "com.seiama", name = "registry", version.ref = "registry" }
+kyoriMoonshine = { group = "net.kyori.moonshine", name = "moonshine", version.ref = "kyoriMoonshine" }
+kyoriMoonshineCore = { group = "net.kyori.moonshine", name = "moonshine-core", version.ref = "kyoriMoonshine" }
+kyoriMoonshineStandard = { group = "net.kyori.moonshine", name = "moonshine-standard", version.ref = "kyoriMoonshine" }
+
+cloudBom = { module = "org.incendo:cloud-bom", version.ref = "cloud" }
+cloudCore = { group = "org.incendo", name = "cloud-core", version.ref = "cloud" }
+brigadier = "com.mojang:brigadier:1.0.18"
+cloudMinecraftBom = { module = "org.incendo:cloud-minecraft-bom", version.ref = "cloudMinecraft" }
+cloudMinecraftExtras = { group = "org.incendo", name = "cloud-minecraft-extras", version.ref = "cloudMinecraft" }
+cloudPaper = { group = "org.incendo", name = "cloud-paper", version.ref = "cloudMinecraft" }
+cloudSigned = { group = "org.incendo", name = "cloud-minecraft-signed-arguments", version.ref = "cloudMinecraft" }
+cloudPaperSigned = { group = "org.incendo", name = "cloud-paper-signed-arguments", version.ref = "cloudMinecraft" }
+cloudSponge = { group = "org.incendo", name = "cloud-sponge", version.ref = "cloudSponge" }
+cloudVelocity = { group = "org.incendo", name = "cloud-velocity", version.ref = "cloudMinecraft" }
+cloudFabric = { group = "org.incendo", name = "cloud-fabric", version.ref = "cloudModded"}
+
+configurateCore = { group = "org.spongepowered", name = "configurate-core", version.ref = "configurate" }
+configurateHocon = { group = "org.spongepowered", name = "configurate-hocon", version.ref = "configurate" }
+configurateYaml = { group = "org.spongepowered", name = "configurate-yaml", version.ref = "configurate" }
+
+checkerQual = { group = "org.checkerframework", name = "checker-qual", version.ref = "checkerQual" }
+stylecheck = { group = "ca.stellardrift", name = "stylecheck", version.ref = "stylecheck" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+bstatsBukkit = { group = "org.bstats", name = "bstats-bukkit", version.ref = "bstats" }
+bstatsVelocity = { group = "org.bstats", name = "bstats-velocity", version.ref = "bstats" }
+bstatsSponge = { group = "org.bstats", name = "bstats-sponge", version.ref = "bstats" }
+guice = { group = "com.google.inject", name = "guice", version.ref = "guice" }
+assistedInject = { group = "com.google.inject.extensions", name = "guice-assistedinject", version.ref = "guice" }
+jdbiCore = { group = "org.jdbi", name = "jdbi3-core", version.ref = "jdbi" }
+jdbiObject = { group = "org.jdbi", name = "jdbi3-sqlobject", version.ref = "jdbi" }
+jdbiPostgres = { group = "org.jdbi", name = "jdbi3-postgres", version.ref = "jdbi" }
+hikariCP = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikari" }
+flyway = { group = "org.flywaydb", name = "flyway-core", version.ref = "flyway" }
+flywayMysql = { group = "org.flywaydb", name = "flyway-mysql", version.ref = "flyway" }
+flywayPostgres = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
+mysql = { group = "com.mysql", name = "mysql-connector-j", version.ref = "mysql" }
+postgresql = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }
+caffeine = { group = "com.github.ben-manes.caffeine", name = "caffeine", version.ref = "caffeine" }
+mariadb = { group = "org.mariadb.jdbc", name = "mariadb-java-client", version.ref = "mariadb" }
+h2 = { group = "com.h2database", name = "h2", version.ref = "h2" }
+jarRelocator = { group = "me.lucko", name = "jar-relocator", version = "1.7" }
+messenger = { group = "de.hexaoxi", name = "messenger-api", version.ref = "messenger" }
+messengerNats = { group = "de.hexaoxi", name = "messenger-nats", version.ref = "messenger" }
+messengerRabbitmq = { group = "de.hexaoxi", name = "messenger-rabbitmq", version.ref = "messenger" }
+messengerRedis = { group = "de.hexaoxi", name = "messenger-redis", version.ref = "messenger" }
+netty = { group = "io.netty", name = "netty-all", version.ref = "netty" }
+zstdjni = { group = "com.github.luben", name = "zstd-jni", version.ref = "zstdjni" }
+jedis = { group = "redis.clients", name = "jedis", version.ref = "jedis" }
+rabbitmq = { group = "com.rabbitmq", name = "amqp-client", version.ref = "rabbitmq" }
+nats = { group = "io.nats", name = "jnats", version.ref = "nats" }
+paperApi = { group = "io.papermc.paper", name = "paper-api", version.ref = "paperApi" }
+paperTrail = { group = "io.papermc", name = "paper-trail", version.ref = "paperTrail" }
+foliaApi = { group = "dev.folia", name = "folia-api", version.ref = "foliaApi" }
+velocityApi = { group = "com.velocitypowered", name = "velocity-api", version.ref = "velocityApi" }
+fabricMinecraft = { group = "com.mojang", name = "minecraft", version.ref = "minecraft" }
+fabricLoader = { group = "net.fabricmc", name = "fabric-loader", version.ref = "fabricLoader" }
+fabricApi = { group = "net.fabricmc.fabric-api", name = "fabric-api", version.ref = "fabricApi" }
+fabricApiDeprecated = { group = "net.fabricmc.fabric-api", name = "fabric-api-deprecated", version.ref = "fabricApi" }
+fabricPermissionsApi = { group = "me.lucko", name = "fabric-permissions-api", version.ref = "fabricPermissionsApi" }
+gremlin-runtime = { group = "xyz.jpenilla", name = "gremlin-runtime", version.ref = "gremlin" }
+luckPermsApi = { group = "net.luckperms", name = "api", version.ref = "luckPermsApi" }
+essentialsXDiscord = { group = "net.essentialsx", name = "EssentialsXDiscord", version.ref = "essentialsx" }
+discordsrv = { group = "com.discordsrv", name = "discordsrv", version.ref = "discordsrv" }
+placeholderapi = { group = "me.clip", name = "placeholderapi", version.ref = "placeholderapi" }
+miniplaceholders = { group = "io.github.miniplaceholders", name = "miniplaceholders-api", version.ref = "miniplaceholders" }
+towny = { group = "com.palmergames.bukkit.towny", name = "towny", version.ref = "towny" }
+mcmmo = { group = "com.gmail.nossr50.mcMMO", name = "mcMMO", version.ref = "mcmmo" }
+factionsUuid = { group = "com.massivecraft", name = "Factions", version.ref = "fuuid" }

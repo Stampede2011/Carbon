@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -59,19 +59,16 @@ public class ConfigChannelMessageSource implements IMessageSource<SourcedAudienc
         """)
     public Map<String, String> defaults = Map.of(
         "default_format", "<display_name>: <message>",
-        "console", "[<channel>] <username> - <uuid>: <message>",
+        "console", "[<channel>] <username>: <message>",
         "discord", "<message>"
     );
 
-    // TODO: Move the default to the advanced config?
     @Comment("""
         Per-Language chat formats.
-        You can safely delete this section if you don't want to use this feature.
-        Will fall back to the defaults section if no format was found for the player.
-        """)
-    public Map<Locale, Map<String, String>> locales = Map.of(
-        Locale.US, Map.of("default_format", "<display_name>: <message>")
-    );
+        You can safely leave this section empty if you don't want to use this feature.
+        Each locale section can be configured in the same way as the above 'basic' section.
+        Will fall back to the 'basic' section if no format was found for the player's locale.""")
+    public Map<Locale, Map<String, String>> locales = Map.of(Locale.getDefault(), Map.of());
 
     private static final String FALLBACK_FORMAT = "<red><</red><username><red>></red> <message>";
 

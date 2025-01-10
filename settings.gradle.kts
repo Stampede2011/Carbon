@@ -7,7 +7,7 @@ dependencyResolutionManagement {
       mavenContent {
         snapshotsOnly()
         includeModuleByRegex("de\\.hexaoxi", "messenger-.*")
-        includeModule("cloud.commandframework", "cloud-sponge")
+        includeModule("org.incendo", "cloud-sponge")
       }
     }
     maven("https://s01.oss.sonatype.org/content/repositories/snapshots/") {
@@ -24,9 +24,6 @@ dependencyResolutionManagement {
     maven("https://repo.extendedclip.com/content/repositories/placeholderapi/") {
       content { includeGroup("me.clip") }
     }
-    maven("https://jitpack.io") {
-      content { includeGroupByRegex("com\\.github\\..*") }
-    }
     // EssentialsDiscord
     maven("https://repo.essentialsx.net/releases/") {
       mavenContent {
@@ -40,11 +37,26 @@ dependencyResolutionManagement {
         includeGroup("net.essentialsx")
       }
     }
+    // CodeMC (Minecraft Open Source)
+    maven("https://repo.codemc.io/repository/maven-public/") {
+      mavenContent {
+        includeGroup("com.gmail.nossr50.mcMMO")
+      }
+    }
     // DiscordSRV
-    maven("https://m2.dv8tion.net/releases")
-    maven("https://nexus.scarsz.me/content/groups/public/")
-    // Libby (AlessioDP's fork)
-    maven("https://repo.alessiodp.com/releases/")
+    maven("https://nexus.scarsz.me/content/groups/public/") {
+      mavenContent {
+        includeGroup("com.discordsrv")
+      }
+    }
+    // Glare's repo for Towny
+    maven("https://repo.glaremasters.me/repository/towny/") {
+      content { includeGroup("com.palmergames.bukkit.towny") }
+    }
+    // FactionsUUID
+    maven("https://ci.ender.zone/plugin/repository/everything/") {
+      content { includeGroup("com.massivecraft") }
+    }
   }
   repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
 }
@@ -52,22 +64,25 @@ dependencyResolutionManagement {
 pluginManagement {
   repositories {
     gradlePluginPortal()
+    maven("https://oss.sonatype.org/content/repositories/snapshots/") {
+      mavenContent { snapshotsOnly() }
+    }
     maven("https://maven.fabricmc.net/")
-    maven("https://repo.jpenilla.xyz/snapshots/")
-    maven("https://repo.stellardrift.ca/repository/snapshots/")
+    maven("https://repo.jpenilla.xyz/snapshots/") {
+      mavenContent { snapshotsOnly() }
+    }
   }
   includeBuild("build-logic")
 }
 
 plugins {
-  id("org.gradle.toolchains.foojay-resolver-convention") version "0.6.0"
-  id("ca.stellardrift.polyglot-version-catalogs") version "6.1.0"
-  id("quiet-fabric-loom") version "1.3-SNAPSHOT"
+  id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
+  id("quiet-fabric-loom") version "1.9-SNAPSHOT"
 }
 
 rootProject.name = "CarbonChat"
 
-sequenceOf(
+listOf(
   "api",
   "common",
   "paper",

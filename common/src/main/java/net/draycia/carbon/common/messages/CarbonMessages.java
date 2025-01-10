@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,9 @@
  */
 package net.draycia.carbon.common.messages;
 
+import java.util.UUID;
 import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.moonshine.annotation.Message;
 import net.kyori.moonshine.annotation.Placeholder;
@@ -38,6 +40,16 @@ public interface CarbonMessages {
     @Message("channel.radius.empty_recipients")
     void emptyRecipients(final Audience audience);
 
+    @Message("channel.radius.spy")
+    void radiusSpy(
+        Audience audience,
+        @Placeholder UUID uuid,
+        @Placeholder Key channel,
+        @Placeholder("display_name") Component displayName,
+        @Placeholder String username,
+        @Placeholder Component message
+    );
+
     @Message("channel.not_found")
     void channelNotFound(final Audience audience);
 
@@ -48,13 +60,16 @@ public interface CarbonMessages {
     void channelAlreadyLeft(final Audience audience);
 
     @Message("channel.no_permission")
-    void channelNoPermission(final Audience audience);
+    Component channelNoPermission(Audience audience);
 
     @Message("channel.left")
     void channelLeft(final Audience audience);
 
     @Message("channel.joined")
     void channelJoined(final Audience audience);
+
+    @Message("channel.cooldown")
+    void channelCooldown(final Audience audience, long remaining);
 
     /*
      * =============================================================
@@ -108,27 +123,43 @@ public interface CarbonMessages {
      */
 
     @Message("whisper.to")
-    void whisperSender(
-        final SourcedAudience audience,
-        @Placeholder("sender_display_name") final Component senderDisplayName,
-        @Placeholder("recipient_display_name") final Component recipientDisplayName,
-        final Component message
+    Component whisperSender(
+        @NotPlaceholder SourcedAudience audience,
+        String senderUsername,
+        Component senderDisplayName,
+        String recipientUsername,
+        Component recipientDisplayName,
+        Component message
     );
 
     @Message("whisper.from")
-    void whisperRecipient(
-        final SourcedAudience audience,
-        @Placeholder("sender_display_name") final Component senderDisplayName,
-        @Placeholder("recipient_display_name") final Component recipientDisplayName,
-        final Component message
+    Component whisperRecipient(
+        @NotPlaceholder SourcedAudience audience,
+        String senderUsername,
+        Component senderDisplayName,
+        String recipientUsername,
+        Component recipientDisplayName,
+        Component message
+    );
+
+    @Message("whisper.from.spy")
+    void whisperRecipientSpy(
+        Audience audience,
+        String senderUsername,
+        Component senderDisplayName,
+        String recipientUsername,
+        Component recipientDisplayName,
+        Component message
     );
 
     @Message("whisper.console")
     void whisperConsoleLog(
-        final Audience audience,
-        @Placeholder("sender_display_name") final Component senderDisplayName,
-        @Placeholder("recipient_display_name") final Component recipientDisplayName,
-        final Component message
+        Audience audience,
+        String senderUsername,
+        Component senderDisplayName,
+        String recipientUsername,
+        Component recipientDisplayName,
+        Component message
     );
 
     @Message("whisper.error")
@@ -168,6 +199,12 @@ public interface CarbonMessages {
     @Message("whisper.toggled.off")
     void whispersToggledOff(final Audience audience);
 
+    @Message("whisper.no_permission.send")
+    void whisperNoPermissionSend(final Audience audience);
+
+    @Message("whisper.no_permission.receive")
+    void whisperNoPermissionReceive(final Audience audience);
+
     /*
      * =============================================================
      * ========================= Nicknames =========================
@@ -187,6 +224,12 @@ public interface CarbonMessages {
         final int minLength,
         final int maxLength
     );
+
+    @Message("nickname.error.blacklist")
+    void nicknameErrorBlackList(final Audience audience, final Component nickname);
+
+    @Message("nickname.error.filter")
+    void nicknameErrorFilter(final Audience audience, final Component nickname);
 
     @Message("nickname.show.others")
     void nicknameShowOthers(final Audience audience, final String target, final Component nickname);
@@ -241,6 +284,36 @@ public interface CarbonMessages {
 
     @Message("config.reload.failed")
     void configReloadFailed(final Audience audience);
+
+    /*
+     * =============================================================
+     * ========================== Spying ===========================
+     * =============================================================
+     */
+
+    @Message("command.spy.enabled")
+    void commandSpyEnabled(final Audience audience);
+
+    @Message("command.spy.disabled")
+    void commandSpyDisabled(final Audience audience);
+
+    @Message("command.spy.description")
+    Component commandSpyDescription();
+
+    /*
+     * =============================================================
+     * ========================== Filters ==========================
+     * =============================================================
+     */
+
+    @Message("command.filter.optional.enabled")
+    void commandOptionalFilterEnabled(final Audience audience);
+
+    @Message("command.filter.optional.disabled")
+    void commandOptionalFilterDisabled(final Audience audience);
+
+    @Message("command.filter.optional.description")
+    Component commandOptionalFilterDescription();
 
     /*
      * =============================================================
@@ -448,7 +521,7 @@ public interface CarbonMessages {
     void partyNameTooLong(Audience audience);
 
     @Message("command.party.received_invite")
-    void receivedPartyInvite(Audience audience, Component senderDisplayName, Component partyName);
+    void receivedPartyInvite(Audience audience, Component senderDisplayName, String senderUsername, Component partyName);
 
     @Message("command.party.sent_invite")
     void sentPartyInvite(Audience audience, Component recipientDisplayName, Component partyName);
@@ -507,6 +580,19 @@ public interface CarbonMessages {
     @Message("party.player_left")
     void playerLeftParty(Audience audience, Component partyName, Component displayName);
 
+    @Message("party.cannot_use_channel")
+    Component cannotUsePartyChannel(Audience audience);
+
+    @Message("party.spy")
+    void partySpy(
+        Audience audience,
+        @Placeholder UUID uuid,
+        @Placeholder("display_name") Component displayName,
+        @Placeholder String username,
+        @Placeholder Component message,
+        @Placeholder("party_name") Component partyName
+    );
+
     @Message("deletemessage.prefix")
     Component deleteMessagePrefix();
 
@@ -522,4 +608,30 @@ public interface CarbonMessages {
     @Message("pagination.footer")
     Component paginationFooter(int page, int pages, Component buttons);
 
+    /*
+     * =============================================================
+     * ======================= Integrations ========================
+     * =============================================================
+     */
+
+    @Message("integrations.towny.cannot_use_alliance_channel")
+    Component cannotUseAllianceChannel(Audience audience);
+
+    @Message("integrations.towny.cannot_use_nation_channel")
+    Component cannotUseNationChannel(Audience audience);
+
+    @Message("integrations.towny.cannot_use_town_channel")
+    Component cannotUseTownChannel(Audience audience);
+
+    @Message("integrations.mcmmo.cannot_use_party_channel")
+    Component cannotUseMcmmoPartyChannel(Audience audience);
+
+    @Message("integrations.fuuid.cannot_use_faction_channel")
+    Component cannotUseFactionChannel(Audience audience);
+
+    @Message("integrations.fuuid.cannot_use_alliance_channel")
+    Component cannotUseFactionAllianceChannel(Audience audience);
+
+    @Message("integrations.fuuid.cannot_use_truce_channel")
+    Component cannotUseTruceChannel(Audience audience);
 }

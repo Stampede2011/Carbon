@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,15 +23,19 @@ import com.google.inject.Inject;
 import io.leangen.geantyref.TypeToken;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import net.draycia.carbon.api.CarbonServer;
+import net.draycia.carbon.api.channels.ChannelPermissions;
 import net.draycia.carbon.api.channels.ChatChannel;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.common.channels.messages.ConfigChannelMessageSource;
 import net.draycia.carbon.common.channels.messages.ConfigChannelMessages;
 import net.draycia.carbon.common.messages.CarbonMessageRenderer;
+import net.draycia.carbon.common.messages.CarbonMessages;
 import net.draycia.carbon.common.messages.SourcedAudience;
 import net.draycia.carbon.common.messages.SourcedMessageSender;
 import net.draycia.carbon.common.messages.SourcedReceiverResolver;
@@ -39,6 +43,7 @@ import net.draycia.carbon.common.messages.placeholders.BooleanPlaceholderResolve
 import net.draycia.carbon.common.messages.placeholders.ComponentPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.IntPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.KeyPlaceholderResolver;
+import net.draycia.carbon.common.messages.placeholders.LongPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.StringPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.UUIDPlaceholderResolver;
 import net.draycia.carbon.common.util.Exceptions;
@@ -59,21 +64,19 @@ import org.spongepowered.configurate.objectmapping.meta.Comment;
 import org.spongepowered.configurate.objectmapping.meta.Setting;
 
 import static java.util.Objects.requireNonNull;
-import static net.kyori.adventure.text.Component.empty;
-import static net.kyori.adventure.text.Component.text;
 
 @ConfigSerializable
 @DefaultQualifier(NonNull.class)
 public class ConfigChatChannel implements ChatChannel {
 
-    private transient @MonotonicNonNull @Inject CarbonServer server;
+    protected transient @MonotonicNonNull @Inject CarbonServer server;
     private transient @MonotonicNonNull @Inject CarbonMessageRenderer renderer;
+    protected transient @MonotonicNonNull @Inject CarbonMessages messages;
 
     @Comment("""
         The channel's key, used to track the channel.
         You only need to change the second part of the key. "global" by default.
-        The value is what's used in commands, this is probably what you want to change.
-        """)
+        The value is what's used in commands, this is probably what you want to change.""")
     protected @Nullable Key key = Key.key("carbon", "global");
 
     @Comment("""
@@ -81,37 +84,38 @@ public class ConfigChatChannel implements ChatChannel {
         
         Assuming permission = "carbon.channel.global"
         To read messages you must have the permission carbon.channel.global.see
-        To send messages you must have the permission carbon.channel.global.speak
-        """)
+        To send messages you must have the permission carbon.channel.global.speak""")
     private @Nullable String permission = null;
 
     @Setting("format")
     @Comment("The chat formats for this channel.")
     protected @Nullable ConfigChannelMessageSource messageSource = new ConfigChannelMessageSource();
 
-    @Comment("Messages will be sent in this channel if they start with this prefix.")
-    private @Nullable String quickPrefix = null;
+    @Comment("Messages will be sent in this channel if they start with this prefix. (Leave empty/blank to disable quick prefix for this channel)")
+    private @Nullable String quickPrefix = "";
 
     private @Nullable Boolean shouldRegisterCommands = true;
 
     private @Nullable String commandName = null;
 
-    private @Nullable List<String> commandAliases = Collections.emptyList();
+    protected @Nullable List<String> commandAliases = Collections.emptyList();
 
     private transient @Nullable ConfigChannelMessages carbonMessages = null;
 
     @Comment("""
         The distance players must be within to see each other's messages.
         A value of '0' requires that both players are in the same world.
-        On velocity, '0' requires that both players are in the same server.
-        """)
+        On velocity, '0' requires that both players are in the same server.""")
     private int radius = -1;
 
     @Comment("""
         If true, players will be able to see if they're not sending messages to anyone
-        because they're out of range from the radius.
-        """)
+        because they're out of range from the radius.""")
     private boolean emptyRadiusRecipientsMessage = true;
+
+    private Map<UUID, Long> cooldowns = new HashMap<>();
+
+    private long cooldown = -1;
 
     @Override
     public @Nullable String quickPrefix() {
@@ -125,7 +129,6 @@ public class ConfigChatChannel implements ChatChannel {
     @Override
     public boolean shouldRegisterCommands() {
         return Objects.requireNonNullElse(this.shouldRegisterCommands, true);
-
     }
 
     @Override
@@ -157,14 +160,8 @@ public class ConfigChatChannel implements ChatChannel {
     }
 
     @Override
-    public ChannelPermissionResult speechPermitted(final CarbonPlayer carbonPlayer) {
-        return ChannelPermissionResult.allowedIf(text("Insufficient permissions!"), () ->
-            carbonPlayer.hasPermission(this.permission() + ".speak")); // carbon.channels.local.speak
-    }
-
-    @Override
-    public ChannelPermissionResult hearingPermitted(final CarbonPlayer player) {
-        return ChannelPermissionResult.allowedIf(empty(), () -> player.hasPermission(this.permission() + ".see") && !player.leftChannels().contains(this.key));
+    public ChannelPermissions permissions() {
+        return new ChannelPermissionsImpl(this.permission(), this.messages);
     }
 
     @Override
@@ -172,7 +169,7 @@ public class ConfigChatChannel implements ChatChannel {
         final List<Audience> recipients = new ArrayList<>();
 
         for (final CarbonPlayer player : this.server.players()) {
-            if (this.hearingPermitted(player).permitted()) {
+            if (this.permissions().hearingPermitted(player).permitted() && !player.leftChannels().contains(this.key)) {
                 recipients.add(player);
             }
         }
@@ -181,6 +178,25 @@ public class ConfigChatChannel implements ChatChannel {
         recipients.add(this.server.console());
 
         return recipients;
+    }
+
+    @Override
+    public long cooldown() {
+        return this.cooldown * 1000; // Seconds to millis
+    }
+
+    @Override
+    public long playerCooldown(final CarbonPlayer player) {
+        if (this.cooldown() <= 0) {
+            return 0;
+        }
+
+        return Objects.requireNonNullElse(this.cooldowns.get(player.uuid()), 0L);
+    }
+
+    public long startCooldown(final CarbonPlayer player) {
+        final long expiresAt = System.currentTimeMillis() + this.cooldown();
+        return Objects.requireNonNullElse(this.cooldowns.put(player.uuid(), expiresAt), 0L);
     }
 
     @Override
@@ -212,6 +228,7 @@ public class ConfigChatChannel implements ChatChannel {
                 .weightedPlaceholderResolver(UUID.class, uuidPlaceholderResolver, 0)
                 .weightedPlaceholderResolver(String.class, stringPlaceholderResolver, 0)
                 .weightedPlaceholderResolver(Integer.class, new IntPlaceholderResolver<>(), 0)
+                .weightedPlaceholderResolver(Long.class, new LongPlaceholderResolver<>(), 0)
                 .weightedPlaceholderResolver(Key.class, keyPlaceholderResolver, 0)
                 .weightedPlaceholderResolver(Boolean.class, booleanPlaceholderResolver, 0)
                 .create(this.getClass().getClassLoader());
@@ -228,8 +245,7 @@ public class ConfigChatChannel implements ChatChannel {
         return requireNonNull(this.carbonMessages, "Channel message service must not be null!");
     }
 
-    @Override
-    public String permission() {
+    private String permission() {
         if (this.permission == null) {
             return "carbon.channel." + this.key().value();
         }

@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,12 +19,12 @@
  */
 package net.draycia.carbon.velocity;
 
-import cloud.commandframework.CommandManager;
-import cloud.commandframework.velocity.VelocityCommandManager;
-import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.TypeLiteral;
+import com.google.inject.multibindings.Multibinder;
 import com.velocitypowered.api.plugin.PluginContainer;
+import com.velocitypowered.api.plugin.PluginManager;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import java.nio.file.Path;
@@ -32,8 +32,10 @@ import net.draycia.carbon.api.CarbonChat;
 import net.draycia.carbon.api.CarbonServer;
 import net.draycia.carbon.api.users.UserManager;
 import net.draycia.carbon.common.CarbonCommonModule;
+import net.draycia.carbon.common.CarbonPlatformModule;
 import net.draycia.carbon.common.DataDirectory;
 import net.draycia.carbon.common.PlatformScheduler;
+import net.draycia.carbon.common.RawChat;
 import net.draycia.carbon.common.command.Commander;
 import net.draycia.carbon.common.command.ExecutionCoordinatorHolder;
 import net.draycia.carbon.common.messages.CarbonMessageRenderer;
@@ -43,26 +45,37 @@ import net.draycia.carbon.common.users.ProfileResolver;
 import net.draycia.carbon.common.util.CloudUtils;
 import net.draycia.carbon.velocity.command.VelocityCommander;
 import net.draycia.carbon.velocity.command.VelocityPlayerCommander;
+import net.draycia.carbon.velocity.listeners.VelocityChatListener;
+import net.draycia.carbon.velocity.listeners.VelocityListener;
+import net.draycia.carbon.velocity.listeners.VelocityPlayerJoinListener;
+import net.draycia.carbon.velocity.listeners.VelocityPlayerLeaveListener;
 import net.draycia.carbon.velocity.users.CarbonPlayerVelocity;
 import net.draycia.carbon.velocity.users.VelocityProfileResolver;
+import net.kyori.adventure.key.Key;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.incendo.cloud.CommandManager;
+import org.incendo.cloud.SenderMapper;
+import org.incendo.cloud.velocity.VelocityCommandManager;
 
 @DefaultQualifier(NonNull.class)
-public final class CarbonChatVelocityModule extends AbstractModule {
+public final class CarbonChatVelocityModule extends CarbonPlatformModule {
 
     private final Logger logger = LogManager.getLogger("carbonchat");
+    private final CarbonVelocityBootstrap bootstrap;
     private final PluginContainer pluginContainer;
     private final ProxyServer proxyServer;
     private final Path dataDirectory;
 
     CarbonChatVelocityModule(
+        final CarbonVelocityBootstrap bootstrap,
         final PluginContainer pluginContainer,
         final ProxyServer proxyServer,
         final Path dataDirectory
     ) {
+        this.bootstrap = bootstrap;
         this.pluginContainer = pluginContainer;
         this.proxyServer = proxyServer;
         this.dataDirectory = dataDirectory;
@@ -79,26 +92,31 @@ public final class CarbonChatVelocityModule extends AbstractModule {
             this.pluginContainer,
             this.proxyServer,
             executionCoordinatorHolder.executionCoordinator(),
-            commandSender -> {
-                if (commandSender instanceof Player player) {
-                    return new VelocityPlayerCommander(userManager, player);
-                }
+            SenderMapper.create(
+                commandSender -> {
+                    if (commandSender instanceof Player player) {
+                        return new VelocityPlayerCommander(userManager, player);
+                    }
 
-                return VelocityCommander.from(commandSender);
-            },
-            commander -> ((VelocityCommander) commander).commandSource()
+                    return VelocityCommander.from(commandSender);
+                },
+                commander -> ((VelocityCommander) commander).commandSource()
+            )
         );
 
-        CloudUtils.decorateCommandManager(commandManager, messages);
-        final var brigadierManager = commandManager.brigadierManager();
-        brigadierManager.setNativeNumberSuggestions(false);
+        CloudUtils.decorateCommandManager(commandManager, messages, this.logger);
 
         return commandManager;
     }
 
     @Override
-    public void configure() {
+    protected void configurePlatform() {
         this.install(new CarbonCommonModule());
+
+        this.bind(CarbonVelocityBootstrap.class).toInstance(this.bootstrap);
+        this.bind(PluginContainer.class).toInstance(this.pluginContainer);
+        this.bind(ProxyServer.class).toInstance(this.proxyServer);
+        this.bind(PluginManager.class).toInstance(this.proxyServer.getPluginManager());
 
         this.bind(CarbonChat.class).to(CarbonChatVelocity.class);
         this.bind(CarbonServer.class).to(CarbonServerVelocity.class);
@@ -108,6 +126,16 @@ public final class CarbonChatVelocityModule extends AbstractModule {
         this.bind(PlatformScheduler.class).to(PlatformScheduler.RunImmediately.class);
         this.install(PlatformUserManager.PlayerFactory.moduleFor(CarbonPlayerVelocity.class));
         this.bind(CarbonMessageRenderer.class).to(VelocityMessageRenderer.class);
+        this.bind(Key.class).annotatedWith(RawChat.class).toInstance(Key.key("unused:unused"));
+
+        this.configureListeners();
+    }
+
+    private void configureListeners() {
+        final Multibinder<VelocityListener<?>> listeners = Multibinder.newSetBinder(this.binder(), new TypeLiteral<VelocityListener<?>>() {});
+        listeners.addBinding().to(VelocityChatListener.class);
+        listeners.addBinding().to(VelocityPlayerJoinListener.class);
+        listeners.addBinding().to(VelocityPlayerLeaveListener.class);
     }
 
 }

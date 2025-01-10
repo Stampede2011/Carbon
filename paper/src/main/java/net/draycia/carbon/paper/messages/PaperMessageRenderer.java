@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,13 +23,12 @@ import com.google.common.base.Suppliers;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.github.miniplaceholders.api.MiniPlaceholders;
-import java.lang.reflect.Method;
-import java.lang.reflect.Type;
-import java.util.Map;
 import java.util.function.Supplier;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.common.config.ConfigManager;
+import net.draycia.carbon.common.integration.miniplaceholders.MiniPlaceholdersExpansion;
 import net.draycia.carbon.common.messages.CarbonMessageRenderer;
+import net.draycia.carbon.common.messages.RenderForTagResolver;
 import net.draycia.carbon.common.messages.SourcedAudience;
 import net.draycia.carbon.common.users.ConsoleCarbonPlayer;
 import net.draycia.carbon.paper.CarbonChatPaper;
@@ -48,7 +47,7 @@ import static java.util.Objects.requireNonNull;
 
 @DefaultQualifier(NonNull.class)
 @Singleton
-public class PaperMessageRenderer implements CarbonMessageRenderer {
+public class PaperMessageRenderer extends CarbonMessageRenderer {
 
     private final Supplier<@MonotonicNonNull PlaceholderAPIMiniMessageParser> placeholderApiProcessor = Suppliers.memoize(() -> {
         if (CarbonChatPaper.papiLoaded()) {
@@ -56,12 +55,12 @@ public class PaperMessageRenderer implements CarbonMessageRenderer {
         }
         return null;
     });
-
-    private final MiniMessage miniMessage;
     private final ConfigManager configManager;
+    private final MiniMessage miniMessage;
 
     @Inject
-    public PaperMessageRenderer(final ConfigManager configManager) {
+    public PaperMessageRenderer(final ConfigManager configManager, final RenderForTagResolver.Factory renderForTagResolver) {
+        super(renderForTagResolver);
         this.miniMessage = MiniMessage.miniMessage();
         this.configManager = configManager;
     }
@@ -70,17 +69,11 @@ public class PaperMessageRenderer implements CarbonMessageRenderer {
     public Component render(
         final Audience receiver,
         final String intermediateMessage,
-        final Map<String, ?> resolvedPlaceholders,
-        final Method method,
-        final Type owner
+        final TagResolver.Builder tagResolver
     ) {
-        final TagResolver.Builder tagResolver = TagResolver.builder();
-
-        CarbonMessageRenderer.addResolved(tagResolver, resolvedPlaceholders);
-
         final String placeholderResolvedMessage = this.configManager.primaryConfig().applyCustomPlaceholders(intermediateMessage);
 
-        if (CarbonChatPaper.miniPlaceholdersLoaded()) {
+        if (MiniPlaceholdersExpansion.miniPlaceholdersLoaded()) {
             tagResolver.resolver(MiniPlaceholders.getGlobalPlaceholders());
         }
 
@@ -99,7 +92,7 @@ public class PaperMessageRenderer implements CarbonMessageRenderer {
 
         final Player senderBukkitPlayer = requireNonNull(Bukkit.getPlayer(sender.uuid()));
 
-        if (CarbonChatPaper.miniPlaceholdersLoaded()) {
+        if (MiniPlaceholdersExpansion.miniPlaceholdersLoaded()) {
             tagResolver.resolver(MiniPlaceholders.getAudiencePlaceholders(senderBukkitPlayer));
         }
 
@@ -120,15 +113,15 @@ public class PaperMessageRenderer implements CarbonMessageRenderer {
             return this.miniMessage.deserialize(placeholderResolvedMessage, tagResolver.build());
         }
 
-        if (CarbonChatPaper.miniPlaceholdersLoaded()) {
+        if (MiniPlaceholdersExpansion.miniPlaceholdersLoaded()) {
             tagResolver.resolver(MiniPlaceholders.getRelationalPlaceholders(
-                senderBukkitPlayer,
-                recipientBukkitPlayer
+                recipientBukkitPlayer,
+                senderBukkitPlayer
             ));
         }
         if (this.hasPlaceholderAPI()) {
-            return this.placeholderApiProcessor.get().parseRelational(senderBukkitPlayer,
-                recipientBukkitPlayer, placeholderResolvedMessage, tagResolver.build());
+            return this.placeholderApiProcessor.get().parseRelational(recipientBukkitPlayer,
+                senderBukkitPlayer, placeholderResolvedMessage, tagResolver.build());
         }
 
         return this.miniMessage.deserialize(placeholderResolvedMessage, tagResolver.build());

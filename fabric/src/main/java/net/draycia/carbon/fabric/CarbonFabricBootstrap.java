@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,15 +24,16 @@ import net.draycia.carbon.api.CarbonChatProvider;
 import net.draycia.carbon.common.util.CarbonDependencies;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.loader.launch.common.FabricLauncherBase;
+import xyz.jpenilla.gremlin.runtime.platformsupport.FabricClasspathAppender;
 
 public class CarbonFabricBootstrap implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        CarbonDependencies.load(
-            FabricLoader.getInstance().getConfigDir().resolve("carbonchat").resolve("libraries"),
-            path -> FabricLauncherBase.getLauncher().propose(path.toUri().toURL())
+        new FabricClasspathAppender().append(
+            CarbonDependencies.resolve(
+                FabricLoader.getInstance().getConfigDir().resolve("carbonchat").resolve("libraries")
+            )
         );
 
         final CarbonChatFabric carbonChat = Guice.createInjector(new CarbonChatFabricModule())

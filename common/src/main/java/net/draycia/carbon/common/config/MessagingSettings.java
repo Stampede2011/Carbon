@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@ import org.spongepowered.configurate.objectmapping.meta.Comment;
 @ConfigSerializable
 public class MessagingSettings {
 
+    @Comment("Whether cross-server messaging is enabled")
     private boolean enabled = false;
 
     @Comment("One of: RABBITMQ, NATS, REDIS")

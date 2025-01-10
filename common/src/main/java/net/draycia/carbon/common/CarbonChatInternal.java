@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,8 +32,10 @@ import net.draycia.carbon.api.CarbonServer;
 import net.draycia.carbon.api.event.CarbonEventHandler;
 import net.draycia.carbon.api.users.UserManager;
 import net.draycia.carbon.common.channels.CarbonChannelRegistry;
+import net.draycia.carbon.common.command.CarbonCommand;
 import net.draycia.carbon.common.command.ExecutionCoordinatorHolder;
 import net.draycia.carbon.common.config.ConfigManager;
+import net.draycia.carbon.common.integration.Integration;
 import net.draycia.carbon.common.listeners.Listener;
 import net.draycia.carbon.common.messages.CarbonMessages;
 import net.draycia.carbon.common.messaging.MessagingManager;
@@ -99,8 +101,8 @@ public abstract class CarbonChatInternal implements CarbonChat {
 
         // Commands
         // This is a bit awkward looking
-        CloudUtils.loadCommands(this.injector);
-        CloudUtils.registerCommands(this.injector.getInstance(ConfigManager.class).loadCommandSettings());
+        final Set<CarbonCommand> commands = this.injector.getInstance(Key.get(new TypeLiteral<Set<CarbonCommand>>() {}));
+        CloudUtils.registerCommands(commands, this.injector.getInstance(ConfigManager.class).loadCommandSettings());
 
         this.periodicTasks.scheduleAtFixedRate(
             () -> PlayerUtils.saveLoggedInPlayers(this.carbonServer, this.userManager, this.logger),
@@ -121,6 +123,17 @@ public abstract class CarbonChatInternal implements CarbonChat {
             TimeUnit.SECONDS
         );
 
+        // Integration
+        final Set<Integration> integrations = this.injector().getInstance(Key.get(new TypeLiteral<>() {}));
+
+        for (final Integration integration : integrations) {
+            if (!integration.eligible()) {
+                continue;
+            }
+
+            integration.register();
+        }
+
         // Load channels
         this.channelRegistry().loadConfigChannels(this.carbonMessages);
 
@@ -139,9 +152,7 @@ public abstract class CarbonChatInternal implements CarbonChat {
     }
 
     protected void shutdown() {
-        this.messagingManager.get().withPacketService(packetService -> {
-            packetService.queuePacket(this.injector.getInstance(PacketFactory.class).clearLocalPlayersPacket());
-        });
+        this.messagingManager.get().queuePacket(() -> this.injector.getInstance(PacketFactory.class).clearLocalPlayersPacket());
         this.messagingManager.get().onShutdown();
         ConcurrentUtil.shutdownExecutor(this.periodicTasks, TimeUnit.MILLISECONDS, 500);
         this.profileCache.save();

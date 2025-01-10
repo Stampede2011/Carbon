@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,21 +19,21 @@
  */
 package net.draycia.carbon.paper;
 
-import cloud.commandframework.CommandManager;
-import cloud.commandframework.brigadier.CloudBrigadierManager;
-import cloud.commandframework.paper.PaperCommandManager;
-import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
+import com.google.inject.multibindings.Multibinder;
 import java.nio.file.Path;
 import net.draycia.carbon.api.CarbonChat;
 import net.draycia.carbon.api.CarbonServer;
 import net.draycia.carbon.api.users.UserManager;
 import net.draycia.carbon.common.CarbonCommonModule;
+import net.draycia.carbon.common.CarbonPlatformModule;
 import net.draycia.carbon.common.DataDirectory;
 import net.draycia.carbon.common.PlatformScheduler;
+import net.draycia.carbon.common.RawChat;
 import net.draycia.carbon.common.command.Commander;
 import net.draycia.carbon.common.command.ExecutionCoordinatorHolder;
+import net.draycia.carbon.common.integration.Integration;
 import net.draycia.carbon.common.messages.CarbonMessageRenderer;
 import net.draycia.carbon.common.messages.CarbonMessages;
 import net.draycia.carbon.common.users.PlatformUserManager;
@@ -41,20 +41,31 @@ import net.draycia.carbon.common.users.ProfileResolver;
 import net.draycia.carbon.common.util.CloudUtils;
 import net.draycia.carbon.paper.command.PaperCommander;
 import net.draycia.carbon.paper.command.PaperPlayerCommander;
+import net.draycia.carbon.paper.integration.dsrv.DSRVIntegration;
+import net.draycia.carbon.paper.integration.essxd.EssXDIntegration;
+import net.draycia.carbon.paper.integration.fuuid.FactionsIntegration;
+import net.draycia.carbon.paper.integration.mcmmo.McmmoIntegration;
+import net.draycia.carbon.paper.integration.towny.TownyIntegration;
+import net.draycia.carbon.paper.listeners.PaperChatListener;
+import net.draycia.carbon.paper.listeners.PaperPlayerJoinListener;
 import net.draycia.carbon.paper.messages.PaperMessageRenderer;
 import net.draycia.carbon.paper.users.CarbonPlayerPaper;
 import net.draycia.carbon.paper.users.PaperProfileResolver;
+import net.kyori.adventure.key.Key;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.incendo.cloud.CommandManager;
+import org.incendo.cloud.SenderMapper;
+import org.incendo.cloud.paper.LegacyPaperCommandManager;
 
 @DefaultQualifier(NonNull.class)
-public final class CarbonChatPaperModule extends AbstractModule {
+public final class CarbonChatPaperModule extends CarbonPlatformModule {
 
     private final Logger logger = LogManager.getLogger("CarbonChat");
     private final CarbonPaperBootstrap bootstrap;
@@ -67,12 +78,10 @@ public final class CarbonChatPaperModule extends AbstractModule {
     @Singleton
     @SuppressWarnings("unused")
     public CommandManager<Commander> commandManager(final UserManager<?> userManager, final CarbonMessages messages, final ExecutionCoordinatorHolder executionCoordinatorHolder) {
-        final PaperCommandManager<Commander> commandManager;
-
-        try {
-            commandManager = new PaperCommandManager<>(
-                this.bootstrap,
-                executionCoordinatorHolder.executionCoordinator(),
+        final LegacyPaperCommandManager<Commander> commandManager = new LegacyPaperCommandManager<>(
+            this.bootstrap,
+            executionCoordinatorHolder.executionCoordinator(),
+            SenderMapper.create(
                 commandSender -> {
                     if (commandSender instanceof Player player) {
                         return new PaperPlayerCommander(userManager, player);
@@ -80,28 +89,18 @@ public final class CarbonChatPaperModule extends AbstractModule {
                     return PaperCommander.from(commandSender);
                 },
                 commander -> ((PaperCommander) commander).commandSender()
-            );
-        } catch (final Exception ex) {
-            throw new RuntimeException("Failed to initialize command manager.", ex);
-        }
+            )
+        );
 
-        CloudUtils.decorateCommandManager(commandManager, messages);
+        CloudUtils.decorateCommandManager(commandManager, messages, this.logger);
 
-        commandManager.registerAsynchronousCompletions();
         commandManager.registerBrigadier();
-
-        final @Nullable CloudBrigadierManager<Commander, ?> brigadierManager =
-            commandManager.brigadierManager();
-
-        if (brigadierManager != null) {
-            brigadierManager.setNativeNumberSuggestions(false);
-        }
 
         return commandManager;
     }
 
     @Override
-    public void configure() {
+    protected void configurePlatform() {
         this.install(new CarbonCommonModule());
 
         this.bind(CarbonChat.class).to(CarbonChatPaper.class);
@@ -114,6 +113,33 @@ public final class CarbonChatPaperModule extends AbstractModule {
         this.bind(PlatformScheduler.class).to(PaperScheduler.class);
         this.install(PlatformUserManager.PlayerFactory.moduleFor(CarbonPlayerPaper.class));
         this.bind(CarbonMessageRenderer.class).to(PaperMessageRenderer.class);
+        this.bind(Key.class).annotatedWith(RawChat.class).toInstance(Key.key("paper:raw"));
+
+        this.configureListeners();
+    }
+
+    @Override
+    protected void configureIntegrations(final Multibinder<Integration> integrations, final Multibinder<Integration.ConfigMeta> configs) {
+        integrations.addBinding().to(TownyIntegration.class);
+        configs.addBinding().toInstance(TownyIntegration.configMeta());
+
+        integrations.addBinding().to(McmmoIntegration.class);
+        configs.addBinding().toInstance(McmmoIntegration.configMeta());
+
+        integrations.addBinding().to(FactionsIntegration.class);
+        configs.addBinding().toInstance(FactionsIntegration.configMeta());
+
+        integrations.addBinding().to(EssXDIntegration.class);
+        configs.addBinding().toInstance(EssXDIntegration.configMeta());
+
+        integrations.addBinding().to(DSRVIntegration.class);
+        configs.addBinding().toInstance(DSRVIntegration.configMeta());
+    }
+
+    private void configureListeners() {
+        final Multibinder<Listener> listeners = Multibinder.newSetBinder(this.binder(), Listener.class);
+        listeners.addBinding().to(PaperChatListener.class);
+        listeners.addBinding().to(PaperPlayerJoinListener.class);
     }
 
 }

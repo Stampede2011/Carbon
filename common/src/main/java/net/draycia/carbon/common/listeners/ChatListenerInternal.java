@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -22,6 +22,7 @@ package net.draycia.carbon.common.listeners;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import net.draycia.carbon.api.channels.ChannelPermissionResult;
 import net.draycia.carbon.api.channels.ChatChannel;
 import net.draycia.carbon.api.event.CarbonEventHandler;
 import net.draycia.carbon.api.users.CarbonPlayer;
@@ -30,6 +31,7 @@ import net.draycia.carbon.common.config.ConfigManager;
 import net.draycia.carbon.common.event.events.CarbonChatEventImpl;
 import net.draycia.carbon.common.event.events.CarbonEarlyChatEvent;
 import net.draycia.carbon.common.messages.CarbonMessages;
+import net.draycia.carbon.common.messages.TagPermissions;
 import net.draycia.carbon.common.users.WrappedCarbonPlayer;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.chat.SignedMessage;
@@ -68,8 +70,27 @@ public abstract class ChatListenerInternal {
     }
 
     protected @Nullable CarbonChatEventImpl prepareAndEmitChatEvent(final CarbonPlayer sender, final String messageContent, final @Nullable SignedMessage signedMessage, final ChatChannel channel) {
+        final ChannelPermissionResult permitted = channel.permissions().speechPermitted(sender);
+        if (!permitted.permitted()) {
+            sender.sendMessage(permitted.reason());
+            return null;
+        }
+
+        if (!sender.hasPermission("carbon.cooldown.exempt") && channel.cooldown() > 0) {
+            final long currentMillis = System.currentTimeMillis();
+            final long expiresAt = channel.playerCooldown(sender);
+
+            if (currentMillis < expiresAt) {
+                // Round up, or the player can be told they have 0 seconds remaining
+                final long remaining = (long) Math.ceil((double) (expiresAt - currentMillis) / 1000);
+                this.carbonMessages.channelCooldown(sender, remaining);
+                return null;
+            }
+
+            channel.startCooldown(sender);
+        }
+        
         String content = this.configManager.primaryConfig().applyChatPlaceholders(messageContent);
-        content = this.configManager.primaryConfig().applyChatFilters(content);
 
         final CarbonEarlyChatEvent earlyChatEvent = new CarbonEarlyChatEvent(sender, content);
         this.carbonEventHandler.emit(earlyChatEvent);
@@ -81,7 +102,7 @@ public abstract class ChatListenerInternal {
         if (sender instanceof WrappedCarbonPlayer wrapped) {
             message = wrapped.parseMessageTags(content);
         } else {
-            message = WrappedCarbonPlayer.parseMessageTags(content, sender::hasPermission);
+            message = TagPermissions.parseTags(TagPermissions.MESSAGE, content, sender::hasPermission);
         }
         if (probablyBlank(message)) {
             return null;

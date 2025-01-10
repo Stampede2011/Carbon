@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
   api(projects.carbonchatApi)
+  api(libs.gremlin.runtime)
   compileOnlyApi(platform(libs.log4jBom))
   compileOnlyApi(libs.log4jApi)
 
@@ -12,14 +13,15 @@ dependencies {
   api(libs.adventureSerializerConfigurate4) {
     isTransitive = false
   }
-  //api(libs.typesafeConfig)
 
   // Cloud
   api(platform(libs.cloudBom))
   api(libs.cloudCore)
+  api(platform(libs.cloudMinecraftBom))
   api(libs.cloudMinecraftExtras) {
     isTransitive = false
   }
+  api(libs.cloudSigned)
 
   // Other
   compileOnlyApi(libs.guice) {
@@ -37,9 +39,12 @@ dependencies {
   compileOnlyApi(libs.jdbiPostgres)
   api(libs.hikariCP)
   compileOnlyApi(libs.flyway) {
-    exclude("com.google", "gson")
+    exclude("com.google.code.gson", "gson")
   }
   compileOnlyApi(libs.flywayMysql) {
+    isTransitive = false
+  }
+  compileOnlyApi(libs.flywayPostgres) {
     isTransitive = false
   }
 
@@ -58,7 +63,6 @@ dependencies {
   api(libs.kyoriMoonshineCore)
   api(libs.kyoriMoonshineStandard)
 
-  compileOnlyApi(libs.jarRelocator)
   compileOnlyApi(libs.caffeine)
 
   // we shade and relocate a newer version than minecraft provides

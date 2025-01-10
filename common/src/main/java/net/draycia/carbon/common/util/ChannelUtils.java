@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,6 @@ import net.draycia.carbon.api.CarbonChatProvider;
 import net.draycia.carbon.api.channels.ChatChannel;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 
 public final class ChannelUtils {
 
@@ -31,14 +30,13 @@ public final class ChannelUtils {
 
     }
 
-    public static void broadcastMessageToChannel(final String mmFormattedMessage, final ChatChannel channel) {
-        final Component originalMessage = MiniMessage.miniMessage().deserialize(mmFormattedMessage);
+    public static void broadcastMessageToChannel(final Component msg, final ChatChannel channel) {
 
         // TODO: Emit events
 
         for (final CarbonPlayer recipient : CarbonChatProvider.carbonChat().server().players()) {
-            if (channel.hearingPermitted(recipient).permitted()) {
-                recipient.sendMessage(originalMessage);
+            if (channel.permissions().hearingPermitted(recipient).permitted() && !recipient.leftChannels().contains(channel.key())) {
+                recipient.sendMessage(msg);
             }
         }
     }

@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,10 +19,6 @@
  */
 package net.draycia.carbon.common.command.commands;
 
-import cloud.commandframework.CommandManager;
-import cloud.commandframework.arguments.standard.StringArgument;
-import cloud.commandframework.minecraft.extras.MinecraftExtrasMetaKeys;
-import cloud.commandframework.minecraft.extras.RichDescription;
 import com.google.inject.Inject;
 import java.util.UUID;
 import net.draycia.carbon.api.users.CarbonPlayer;
@@ -37,6 +33,11 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.incendo.cloud.CommandManager;
+import org.incendo.cloud.minecraft.signed.SignedString;
+
+import static org.incendo.cloud.minecraft.extras.RichDescription.richDescription;
+import static org.incendo.cloud.minecraft.signed.SignedGreedyStringParser.signedGreedyStringParser;
 
 @DefaultQualifier(NonNull.class)
 public final class ReplyCommand extends CarbonCommand {
@@ -60,7 +61,7 @@ public final class ReplyCommand extends CarbonCommand {
     }
 
     @Override
-    protected CommandSettings _commandSettings() {
+    public CommandSettings defaultCommandSettings() {
         return new CommandSettings("reply", "r");
     }
 
@@ -72,20 +73,19 @@ public final class ReplyCommand extends CarbonCommand {
     @Override
     public void init() {
         final var command = this.commandManager.commandBuilder(this.commandSettings().name(), this.commandSettings().aliases())
-            .argument(StringArgument.greedy("message"),
-                RichDescription.of(this.messages.commandReplyArgumentMessage()))
+            .required("message", signedGreedyStringParser(), richDescription(this.messages.commandReplyArgumentMessage()))
             .permission("carbon.whisper.reply")
             .senderType(PlayerCommander.class)
-            .meta(MinecraftExtrasMetaKeys.DESCRIPTION, this.messages.commandReplyDescription())
+            .commandDescription(richDescription(this.messages.commandReplyDescription()))
             .handler(ctx -> {
-                final CarbonPlayer sender = ((PlayerCommander) ctx.getSender()).carbonPlayer();
+                final CarbonPlayer sender = ctx.sender().carbonPlayer();
 
                 if (sender.muted()) {
                     this.messages.muteCannotSpeak(sender);
                     return;
                 }
 
-                final String message = ctx.get("message");
+                final SignedString message = ctx.get("message");
                 final @Nullable UUID replyTarget = sender.whisperReplyTarget();
 
                 if (replyTarget == null) {

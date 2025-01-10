@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -154,9 +154,16 @@ public final class PartyImpl implements Party {
         if (this.disbanded) {
             throw new IllegalStateException("This party is already disbanded.");
         }
-        this.server.players().stream().filter(p -> this.members.contains(p.uuid())).forEach(p -> ((WrappedCarbonPlayer) p).party(null));
+        this.disbandRaw();
         this.userManager.disbandParty(this.id);
+    }
+
+    public void disbandRaw() {
         this.disbanded = true;
+        this.server.players().stream().filter(p -> this.members.contains(p.uuid())).forEach(p -> ((WrappedCarbonPlayer) p).party(null));
+        for (final UUID member : this.members) {
+            this.emitLeaveEvent(member);
+        }
     }
 
     public Set<UUID> rawMembers() {
@@ -185,6 +192,12 @@ public final class PartyImpl implements Party {
     public void removeMemberRaw(final UUID id) {
         this.members.remove(id);
 
+        this.emitLeaveEvent(id);
+
+        this.notifyLeave(id);
+    }
+
+    private void emitLeaveEvent(final UUID id) {
         this.events.emit(new PartyLeaveEvent() {
 
             @Override
@@ -197,8 +210,6 @@ public final class PartyImpl implements Party {
                 return PartyImpl.this;
             }
         });
-
-        this.notifyLeave(id);
     }
 
     public Map<UUID, ChangeType> pollChanges() {
@@ -243,7 +254,9 @@ public final class PartyImpl implements Party {
                 changedPlayer.get().thenAccept(p -> {
                     notify.notify(p, this, player);
                 }).whenComplete(($, thr) -> {
-                    this.logger.warn("Exception notifying members of party change", thr);
+                    if (thr != null) {
+                        this.logger.warn("Exception notifying members of party change", thr);
+                    }
                 });
             }
         }

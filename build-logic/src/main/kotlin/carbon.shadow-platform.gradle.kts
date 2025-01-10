@@ -1,11 +1,11 @@
 plugins {
   id("carbon.platform-conventions")
-  id("com.github.johnrengelman.shadow")
+  id("com.gradleup.shadow")
 }
 
 tasks {
   jar {
-    archiveClassifier.set("unshaded")
+    archiveClassifier = "unshaded"
   }
   shadowJar {
     archiveClassifier.set(null as String?)
@@ -15,5 +15,5 @@ tasks {
 }
 
 extensions.configure<CarbonPlatformExtension> {
-  jarTask.set(tasks.shadowJar)
+  productionJar = tasks.shadowJar.flatMap { it.archiveFile }
 }

@@ -5,32 +5,35 @@ plugins {
   id("quiet-fabric-loom")
 }
 
-val carbon: Configuration by configurations.creating
+val shade: Configuration by configurations.creating
 
 configurations.implementation {
-  extendsFrom(carbon)
+  extendsFrom(shade)
 }
 
 dependencies {
   minecraft(libs.fabricMinecraft)
   mappings(loom.officialMojangMappings())
   modImplementation(libs.fabricLoader)
-  modImplementation("net.fabricmc.fabric-api:fabric-api:0.83.0+1.20.1")
-  modImplementation("net.fabricmc.fabric-api:fabric-api-deprecated:0.83.0+1.20.1") // LuckPerms needs to work at dev time
+  modImplementation(libs.fabricApi)
+  modImplementation(libs.fabricApiDeprecated) // LuckPerms needs to work at dev time
 
-  carbon(projects.carbonchatCommon) {
+  shade(projects.carbonchatCommon) {
     exclude("net.kyori", "adventure-api")
     exclude("net.kyori", "adventure-text-serializer-gson")
     exclude("net.kyori", "adventure-text-serializer-plain")
-    exclude("cloud.commandframework", "cloud-core")
-    exclude("cloud.commandframework", "cloud-services")
-    exclude("cloud.commandframework", "cloud-brigadier")
+    exclude("org.incendo", "cloud-core")
+    exclude("org.incendo", "cloud-services")
+    exclude("org.incendo", "cloud-brigadier")
+    exclude("org.incendo", "cloud-minecraft-signed-arguments")
     exclude("io.leangen.geantyref")
   }
 
   modImplementation(libs.cloudFabric)
   include(libs.cloudFabric)
-  modImplementation("me.lucko:fabric-permissions-api:0.2-SNAPSHOT")
+  implementation(libs.cloudSigned)
+  include(libs.cloudSigned)
+  modImplementation(libs.fabricPermissionsApi)
 
   modImplementation(libs.adventurePlatformFabric)
   include(libs.adventurePlatformFabric)
@@ -42,20 +45,17 @@ dependencies {
   runtimeOnly(libs.jarRelocator) {
     isTransitive = false
   }
-  runtimeDownload(libs.guice) {
-    exclude("com.google.guava")
-  }
   runtimeDownload(libs.checkerQual)
 }
 
 carbonPlatform {
-  jarTask.set(tasks.remapJar)
+  productionJar = tasks.remapJar.flatMap { it.archiveFile }
 }
 
 tasks {
   shadowJar {
-    configurations = arrayListOf(carbon) as List<FileCollection>
-    relocateDependency("cloud.commandframework.minecraft.extras")
+    configurations = listOf(shade)
+    relocateDependency("org.incendo.cloud.minecraft.extras")
     standardRuntimeRelocations()
     relocateGuice()
     relocateDependency("org.checkerframework")
@@ -91,7 +91,7 @@ tasks {
   }
 }
 
-modrinth {
-  gameVersions.set(listOf(libs.versions.minecraft.get()))
-  loaders.addAll("fabric")
+publishMods.modrinth {
+  minecraftVersions.set(listOf(libs.versions.minecraft.get()))
+  modLoaders.addAll("fabric")
 }

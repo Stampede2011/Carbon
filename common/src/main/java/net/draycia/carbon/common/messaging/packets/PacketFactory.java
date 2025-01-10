@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -56,5 +56,7 @@ public interface PacketFactory {
     PartyInvitePacket partyInvite(@Assisted("from") UUID from, @Assisted("to") UUID to, @Assisted("party") UUID party);
 
     InvalidatePartyInvitePacket invalidatePartyInvite(@Assisted("from") UUID from, @Assisted("to") UUID to);
+
+    DisbandPartyPacket disbandParty(UUID party);
 
 }

@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,11 +19,8 @@
  */
 package net.draycia.carbon.common.command.commands;
 
-import cloud.commandframework.CommandManager;
-import cloud.commandframework.arguments.standard.StringArgument;
-import cloud.commandframework.minecraft.extras.MinecraftExtrasMetaKeys;
-import cloud.commandframework.minecraft.extras.RichDescription;
 import com.google.inject.Inject;
+import java.util.Objects;
 import net.draycia.carbon.api.channels.ChatChannel;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.common.channels.CarbonChannelRegistry;
@@ -36,6 +33,12 @@ import net.kyori.adventure.key.Key;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.incendo.cloud.CommandManager;
+import org.incendo.cloud.suggestion.Suggestion;
+import org.incendo.cloud.suggestion.SuggestionProvider;
+
+import static org.incendo.cloud.minecraft.extras.RichDescription.richDescription;
+import static org.incendo.cloud.parser.standard.StringParser.greedyStringParser;
 
 @DefaultQualifier(NonNull.class)
 public final class LeaveCommand extends CarbonCommand {
@@ -56,7 +59,7 @@ public final class LeaveCommand extends CarbonCommand {
     }
 
     @Override
-    protected CommandSettings _commandSettings() {
+    public CommandSettings defaultCommandSettings() {
         return new CommandSettings("leave");
     }
 
@@ -68,26 +71,25 @@ public final class LeaveCommand extends CarbonCommand {
     @Override
     public void init() {
         final var command = this.commandManager.commandBuilder(this.commandSettings().name(), this.commandSettings().aliases())
-            .argument(StringArgument.<Commander>builder("channel").greedy().withSuggestionsProvider((context, s) -> {
-                final CarbonPlayer sender = ((PlayerCommander) context.getSender()).carbonPlayer();
+            .required("channel", greedyStringParser(), SuggestionProvider.blocking((context, s) -> {
+                final CarbonPlayer sender = ((PlayerCommander) context.sender()).carbonPlayer();
                 return this.channelRegistry.keys().stream()
                     .map(this.channelRegistry::channel)
-                    .filter(x -> !sender.leftChannels().contains(x.key()) && x.speechPermitted(sender).permitted())
+                    .filter(Objects::nonNull)
+                    .filter(x -> !sender.leftChannels().contains(x.key())
+                        && (x.permissions().joinPermitted(sender).permitted() || x.permissions().hearingPermitted(sender).permitted() || x.permissions().speechPermitted(sender).permitted()))
                     .map(x -> x.key().value())
+                    .map(Suggestion::suggestion)
                     .toList();
-            }), RichDescription.of(this.carbonMessages.commandLeaveDescription()))
-            .permission("carbon.join")
+            }))
+            .permission("carbon.leave")
             .senderType(PlayerCommander.class)
-            .meta(MinecraftExtrasMetaKeys.DESCRIPTION, this.carbonMessages.commandLeaveDescription())
+            .commandDescription(richDescription(this.carbonMessages.commandLeaveDescription()))
             .handler(handler -> {
-                final CarbonPlayer sender = ((PlayerCommander) handler.getSender()).carbonPlayer();
+                final CarbonPlayer sender = handler.sender().carbonPlayer();
                 final @Nullable ChatChannel channel = this.channelRegistry.channelByValue(handler.get("channel"));
                 if (channel == null) {
                     this.carbonMessages.channelNotFound(sender);
-                    return;
-                }
-                if (!channel.speechPermitted(sender).permitted()) {
-                    this.carbonMessages.channelNoPermission(sender);
                     return;
                 }
                 if (sender.leftChannels().contains(channel.key())) {

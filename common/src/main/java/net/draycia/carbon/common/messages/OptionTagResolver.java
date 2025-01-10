@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -45,8 +45,11 @@ public final class OptionTagResolver implements TagResolver {
             return null;
         }
         final Tag.Argument t = arguments.popOr("Missing option 1");
-        final Tag.Argument f = arguments.popOr("Missing option 2");
-        return Tag.preProcessParsed(this.state ? t.value() : f.value());
+        String f = "";
+        if (arguments.peek() != null) {
+            f = arguments.pop().value();
+        }
+        return Tag.preProcessParsed(this.state ? t.value() : f);
     }
 
     @Override

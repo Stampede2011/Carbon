@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -19,9 +19,6 @@
  */
 package net.draycia.carbon.common.channels;
 
-import cloud.commandframework.Command;
-import cloud.commandframework.CommandManager;
-import cloud.commandframework.arguments.standard.StringArgument;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
@@ -33,61 +30,60 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import net.draycia.carbon.api.channels.ChannelPermissions;
 import net.draycia.carbon.api.channels.ChannelRegistry;
 import net.draycia.carbon.api.channels.ChatChannel;
 import net.draycia.carbon.api.event.CarbonEventHandler;
 import net.draycia.carbon.api.event.events.CarbonChannelRegisterEvent;
+import net.draycia.carbon.api.event.events.ChannelSwitchEvent;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.common.DataDirectory;
+import net.draycia.carbon.common.RawChat;
 import net.draycia.carbon.common.command.Commander;
 import net.draycia.carbon.common.command.PlayerCommander;
 import net.draycia.carbon.common.config.ConfigManager;
 import net.draycia.carbon.common.event.events.CarbonChatEventImpl;
 import net.draycia.carbon.common.event.events.CarbonReloadEvent;
 import net.draycia.carbon.common.event.events.ChannelRegisterEventImpl;
+import net.draycia.carbon.common.event.events.ChannelSwitchEventImpl;
 import net.draycia.carbon.common.listeners.ChatListenerInternal;
 import net.draycia.carbon.common.messages.CarbonMessages;
 import net.draycia.carbon.common.users.ConsoleCarbonPlayer;
 import net.draycia.carbon.common.util.Exceptions;
 import net.draycia.carbon.common.util.FileUtil;
 import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.chat.ChatType;
 import net.kyori.adventure.key.Key;
 import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.incendo.cloud.Command;
+import org.incendo.cloud.CommandManager;
+import org.incendo.cloud.minecraft.signed.SignedString;
+import org.incendo.cloud.permission.PredicatePermission;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
-import org.spongepowered.configurate.NodePath;
 import org.spongepowered.configurate.loader.ConfigurationLoader;
-import org.spongepowered.configurate.objectmapping.ObjectMapper;
-import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.transformation.ConfigurationTransformation;
+
+import static org.incendo.cloud.minecraft.signed.SignedGreedyStringParser.signedGreedyStringParser;
 
 @Singleton
 @DefaultQualifier(NonNull.class)
 public class CarbonChannelRegistry extends ChatListenerInternal implements ChannelRegistry {
-
-    private static final String PARTYCHAT_CONF = "partychat.conf";
-    private static @MonotonicNonNull ObjectMapper<ConfigChatChannel> MAPPER;
-    private static @MonotonicNonNull ObjectMapper<PartyChatChannel> PARTY_MAPPER;
-
-    static {
-        try {
-            MAPPER = ObjectMapper.factory().get(ConfigChatChannel.class);
-            PARTY_MAPPER = ObjectMapper.factory().get(PartyChatChannel.class);
-        } catch (final SerializationException e) {
-            e.printStackTrace();
-        }
-    }
 
     private final Path configChannelDir;
     private final Injector injector;
@@ -96,6 +92,18 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
     private @MonotonicNonNull Key defaultKey;
     private final CarbonMessages carbonMessages;
     private final CarbonEventHandler eventHandler;
+    private final Key rawChatKey;
+    private final Map<String, SpecialHandler<?>> handlers = new HashMap<>();
+
+    private record SpecialHandler<T extends ConfigChatChannel>(Class<T> cls, Supplier<T> defaultSupplier) {}
+
+    public <T extends ConfigChatChannel> void registerSpecialConfigChannel(final String fileName, final Class<T> type) {
+        if (this.handlers.containsKey(fileName)) {
+            throw new IllegalStateException("Attempting to register duplicate entry (existing: " + this.handlers.get(fileName)
+                + ", new: " + type + ") for key " + fileName);
+        }
+        this.handlers.put(fileName, new SpecialHandler<>(type, () -> this.injector.getInstance(type)));
+    }
 
     private volatile Registry<Key, ChatChannel> channelRegistry = Registry.create();
     private final Set<Key> configChannels = ConcurrentHashMap.newKeySet();
@@ -109,7 +117,8 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
         final Logger logger,
         final ConfigManager config,
         final CarbonMessages carbonMessages,
-        final CarbonEventHandler events
+        final CarbonEventHandler events,
+        @RawChat final Key rawChatKey
     ) {
         super(events, carbonMessages, config);
         this.configChannelDir = dataDirectory.resolve("channels");
@@ -118,48 +127,41 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
         this.config = config;
         this.carbonMessages = carbonMessages;
         this.eventHandler = events;
+        this.rawChatKey = rawChatKey;
+
+        if (config.primaryConfig().partyChat().enabled) {
+            this.registerSpecialConfigChannel(PartyChatChannel.FILE_NAME, PartyChatChannel.class);
+        }
 
         events.subscribe(CarbonReloadEvent.class, -99, true, event -> this.reloadConfigChannels());
     }
 
-    public static ConfigurationTransformation.Versioned versioned() {
+    public static ConfigurationTransformation.Versioned configChatChannelUpgrader() {
+        // final ConfigurationTransformation initial;
+
         return ConfigurationTransformation.versionedBuilder()
-            .addVersion(0, initialTransform())
+            .versionKey(ConfigManager.CONFIG_VERSION_KEY)
+            // .addVersion(0, initial)
             .build();
     }
 
-    private static ConfigurationTransformation initialTransform() {
-        return ConfigurationTransformation.builder()
-            .addAction(NodePath.path(), (path, value) -> {
-                value.node("radius").set(-1);
+    public static <N extends ConfigurationNode> N upgradeConfigChatChannelNode(final N node) throws ConfigurateException {
+        if (true) {
+            // No transformations yet!
+            return node;
+        }
 
-                return null;
-            })
-            .build();
-    }
-
-    // https://github.com/SpongePowered/Configurate/blob/1ec74f6474237585aee858b636d9761d237839d5/examples/src/main/java/org/spongepowered/configurate/examples/Transformations.java#L107
-
-    /**
-     * Apply the transformations to a node.
-     *
-     * <p>This method also prints information about the version update that
-     * occurred</p>
-     *
-     * @param node the node to transform
-     * @param <N>  node type
-     * @return provided node, after transformation
-     */
-    public static <N extends ConfigurationNode> N updateNode(final N node) throws ConfigurateException {
         if (!node.virtual()) { // we only want to migrate existing data
-            final ConfigurationTransformation.Versioned trans = versioned();
-            final int startVersion = trans.version(node);
-            trans.apply(node);
-            final int endVersion = trans.version(node);
+            final ConfigurationTransformation.Versioned upgrader = configChatChannelUpgrader();
+            final int from = upgrader.version(node);
+            upgrader.apply(node);
+            final int to = upgrader.version(node);
 
-            if (startVersion != endVersion) { // we might not have made any changes
+            ConfigManager.configVersionComment(node, upgrader);
+
+            if (from != to) { // we might not have made any changes
                 // TODO: use logger
-                //CarbonChatProvider.carbonChat().logger().info("Updated config schema from " + startVersion + " to " + endVersion);
+                //CarbonChatProvider.carbonChat().logger().info("Updated config schema from " + from + " to " + to);
             }
         }
 
@@ -217,14 +219,19 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
         this.logger.info("Loading config channels...");
         this.defaultKey = this.config.primaryConfig().defaultChannel();
 
-        final boolean party = this.config.primaryConfig().partyChat();
-        if (party) {
-            this.saveDefaultPartyConfig();
-        }
+        this.saveSpecialDefaults();
 
         List<Path> channelConfigs = FileUtil.listDirectoryEntries(this.configChannelDir, "*.conf");
-        if (channelConfigs.isEmpty() ||
-            party && channelConfigs.size() == 1 && channelConfigs.get(0).getFileName().toString().equals(PARTYCHAT_CONF)) {
+
+        final Set<String> channelConfigFileNames = channelConfigs
+            .stream()
+            .map(Path::getFileName)
+            .map(Path::toString)
+            .collect(Collectors.toSet());
+
+        final Set<String> expectedHandlerFileNames = this.handlers.keySet();
+
+        if (channelConfigs.size() == this.handlers.size() && channelConfigFileNames.containsAll(expectedHandlerFileNames)) {
             this.saveDefaultChannelConfig();
             channelConfigs = FileUtil.listDirectoryEntries(this.configChannelDir, "*.conf");
         }
@@ -241,7 +248,12 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
             }
             final Key channelKey = chatChannel.key();
             if (this.defaultKey.equals(channelKey)) {
-                this.logger.info("Default channel is [" + channelKey + "]");
+                this.logger.info("Default channel is [{}]", channelKey);
+            }
+
+            if (this.channelRegistry.keys().contains(channelKey)) {
+                this.logger.warn("Channel with key [{}] has already been registered, skipping {}", channelKey, channelConfigFile);
+                continue;
             }
 
             this.injector.injectMembers(chatChannel);
@@ -250,7 +262,7 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
         }
 
         if (this.channel(this.defaultKey) == null) {
-            this.logger.warn("No default channel found! Default channel key: [" + this.defaultKey().asString() + "]");
+            this.logger.warn("No default channel found! Default channel key: [{}]", this.defaultKey());
         }
 
         final List<String> channelList = new ArrayList<>();
@@ -261,14 +273,32 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
 
         final String channels = String.join(", ", channelList);
 
-        this.logger.info("Registered channels: [" + channels + "]");
+        this.logger.info("Registered channels: [{}]", channels);
+    }
+
+    private void saveSpecialDefaults() {
+        for (final Map.Entry<String, SpecialHandler<?>> e : this.handlers.entrySet()) {
+            final Path configFile = this.configChannelDir.resolve(e.getKey());
+            if (Files.isRegularFile(configFile)) {
+                continue;
+            }
+            try {
+                final ConfigChatChannel configChannel = e.getValue().defaultSupplier().get();
+                final ConfigurationLoader<?> loader = this.config.configurationLoader(FileUtil.mkParentDirs(configFile), ConfigManager.extractHeader(e.getValue().cls()));
+                final ConfigurationNode node = loader.createNode();
+                node.set(e.getValue().cls(), configChannel);
+                loader.save(node);
+            } catch (final IOException exception) {
+                throw Exceptions.rethrow(exception);
+            }
+        }
     }
 
     private void saveDefaultChannelConfig() {
         try {
             final Path configFile = this.configChannelDir.resolve("global.conf");
             final ConfigChatChannel configChannel = this.injector.getInstance(ConfigChatChannel.class);
-            final ConfigurationLoader<?> loader = this.config.configurationLoader(FileUtil.mkParentDirs(configFile));
+            final ConfigurationLoader<?> loader = this.config.configurationLoader(FileUtil.mkParentDirs(configFile), ConfigManager.extractHeader(ConfigChatChannel.class));
             final ConfigurationNode node = loader.createNode();
             node.set(ConfigChatChannel.class, configChannel);
             loader.save(node);
@@ -277,29 +307,22 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
         }
     }
 
-    private void saveDefaultPartyConfig() {
-        final Path configFile = this.configChannelDir.resolve(PARTYCHAT_CONF);
-        if (Files.isRegularFile(configFile)) {
-            return;
-        }
-        try {
-            final ConfigChatChannel configChannel = this.injector.getInstance(PartyChatChannel.class);
-            final ConfigurationLoader<?> loader = this.config.configurationLoader(FileUtil.mkParentDirs(configFile));
-            final ConfigurationNode node = loader.createNode();
-            node.set(PartyChatChannel.class, configChannel);
-            loader.save(node);
-        } catch (final IOException exception) {
-            throw Exceptions.rethrow(exception);
-        }
-    }
-
     private @Nullable ChatChannel loadChannel(final Path channelFile) {
-        final ConfigurationLoader<?> loader = this.config.configurationLoader(channelFile);
-
         try {
-            final ConfigurationNode loaded = updateNode(loader.load());
+            final @Nullable SpecialHandler<?> special = this.handlers.get(channelFile.getFileName().toString());
+            final Class<? extends ConfigChatChannel> type = special == null ? ConfigChatChannel.class : special.cls();
+
+            final ConfigurationLoader<?> loader = this.config.configurationLoader(channelFile, ConfigManager.extractHeader(type));
+            final ConfigurationNode loaded = upgradeConfigChatChannelNode(loader.load());
+            final @Nullable ConfigChatChannel channel = loaded.get(type);
+            if (channel == null) {
+                throw new ConfigurateException("Config deserialized to null.");
+            }
+
+            loaded.set(type, channel);
             loader.save(loaded);
-            return (this.config.primaryConfig().partyChat() && channelFile.getFileName().toString().equals(PARTYCHAT_CONF) ? PARTY_MAPPER : MAPPER).load(loaded);
+
+            return channel;
         } catch (final ConfigurateException exception) {
             this.logger.warn("Failed to load channel from file '{}'", channelFile, exception);
         }
@@ -312,22 +335,22 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
         final ChatChannel channel,
         final String plainMessage
     ) {
-        this.sendMessageInChannel(new ConsoleCarbonPlayer(sender), channel, plainMessage);
+        this.sendMessageInChannel(new ConsoleCarbonPlayer(sender), channel, SignedString.unsigned(plainMessage));
     }
 
     private void sendMessageInChannel(
         final CarbonPlayer sender,
         final ChatChannel channel,
-        final String plainMessage
+        final SignedString message
     ) {
-        final @Nullable CarbonChatEventImpl chatEvent = this.prepareAndEmitChatEvent(sender, plainMessage, null, channel);
+        final @Nullable CarbonChatEventImpl chatEvent = this.prepareAndEmitChatEvent(sender, message.string(), message.signedMessage(), channel);
 
         if (chatEvent == null || chatEvent.cancelled()) {
             return;
         }
 
         for (final Audience recipient : chatEvent.recipients()) {
-            recipient.sendMessage(chatEvent.renderFor(recipient));
+            message.sendMessage(recipient, ChatType.chatType(this.rawChatKey), chatEvent.renderFor(recipient));
         }
     }
 
@@ -340,32 +363,30 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
 
         Command.Builder<Commander> builder = commandManager.commandBuilder(channel.commandName(),
                 channel.commandAliases(), commandManager.createDefaultCommandMeta())
-            .argument(StringArgument.<Commander>builder("message").greedy().asOptional().build());
+            .optional("message", signedGreedyStringParser());
 
-        if (channel.permission() != null) {
-            builder = builder.permission(channel.permission());
-
-            // Add to LuckPerms permission suggestions... lol
-            //this.carbonChat.server().console().get(PermissionChecker.POINTER).ifPresent(checker -> {
-            //    checker.test(channel.permission());
-            //    checker.test(channel.permission() + ".see");
-            //    checker.test(channel.permission() + ".speak");
-            //});
+        if (!channel.permissions().dynamic()) {
+            builder = builder.permission(PredicatePermission.of(sender -> {
+                if (!(sender instanceof CarbonPlayer player)) {
+                    return true;
+                }
+                return channel.permissions().joinPermitted(player).permitted();
+            }));
         }
 
         final Key channelKey = channel.key();
 
         final Command<Commander> command = builder.senderType(Commander.class)
             .handler(handler -> {
-                final Commander commander = handler.getSender();
-                final @Nullable ChatChannel chatChannel = this.channel(channelKey);
+                final Commander commander = handler.sender();
+                @Nullable ChatChannel chatChannel = this.channel(channelKey);
 
                 if (!(commander instanceof PlayerCommander playerCommander)) {
                     if (chatChannel != null && handler.contains("message")) {
-                        final String message = handler.get("message");
+                        final SignedString message = handler.get("message");
 
                         // TODO: trigger platform events related to chat
-                        this.sendMessageInChannelAsConsole(commander, chatChannel, message);
+                        this.sendMessageInChannelAsConsole(commander, chatChannel, message.string());
                     }
 
                     return;
@@ -382,13 +403,21 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
                     this.carbonMessages.channelJoined(player);
                 }
                 if (handler.contains("message")) {
-                    final String message = handler.get("message");
+                    final SignedString message = handler.get("message");
 
                     // TODO: trigger platform events related to chat
                     this.sendMessageInChannel(player, chatChannel, message);
                 } else {
-                    player.selectedChannel(chatChannel);
-                    this.carbonMessages.changedChannels(player, channelKey.value());
+                    final @Nullable ChatChannel fromChannel = player.selectedChannel();
+                    if (this.config.primaryConfig().returnToDefaultChannel() && fromChannel != null && fromChannel.key().equals(channelKey)) {
+                        chatChannel = this.defaultChannel();
+                    }
+
+                    final ChannelSwitchEvent switchEvent = new ChannelSwitchEventImpl(player, chatChannel);
+                    this.eventHandler.emit(switchEvent);
+
+                    player.selectedChannel(switchEvent.channel());
+                    this.carbonMessages.changedChannels(player, chatChannel.key().value());
                 }
             })
             .build();
@@ -420,7 +449,7 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
 
     @Override
     public @Nullable ChatChannel channel(final Key key) {
-        final Holder<Key, ChatChannel> holder = this.channelRegistry.getHolder(key);
+        final @Nullable Holder<Key, ChatChannel> holder = this.channelRegistry.getHolder(key);
         return holder == null ? null : holder.value();
     }
 
@@ -486,6 +515,11 @@ public class CarbonChannelRegistry extends ChatListenerInternal implements Chann
                 }
             }
         );
+    }
+
+    @Override
+    public ChannelPermissions permission(final String permission) {
+        return new ChannelPermissionsImpl(permission, this.carbonMessages);
     }
 
 }

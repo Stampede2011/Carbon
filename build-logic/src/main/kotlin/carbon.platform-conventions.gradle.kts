@@ -1,17 +1,14 @@
+import me.modmuss50.mpp.ReleaseType
+
 plugins {
   id("carbon.base-conventions")
-  id("com.modrinth.minotaur")
+  id("me.modmuss50.mod-publish-plugin")
+  id("xyz.jpenilla.gremlin-gradle")
 }
 
 decorateVersion()
 
-val runtimeDownload: Configuration by configurations.creating {
-  isCanBeResolved = true
-  isCanBeConsumed = false
-  attributes {
-    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
-  }
-
+configurations.runtimeDownload {
   exclude("org.slf4j", "slf4j-api")
   exclude("com.google.errorprone", "error_prone_annotations")
   exclude("io.leangen.geantyref", "geantyref")
@@ -28,16 +25,24 @@ dependencies {
   runtimeDownload(libs.jdbiObject)
   runtimeDownload(libs.jdbiPostgres)
   runtimeDownload(libs.caffeine)
-  runtimeDownload(libs.jedis)
+  runtimeDownload(libs.jedis) {
+    exclude("com.google.code.gson", "gson")
+  }
   runtimeDownload(libs.rabbitmq)
   runtimeDownload(libs.nats)
+  runtimeDownload(libs.guice) {
+    exclude("com.google.guava")
+  }
   runtimeDownload(libs.assistedInject) {
     isTransitive = false
   }
   runtimeDownload(libs.flyway) {
-    exclude("com.google", "gson")
+    exclude("com.google.code.gson", "gson")
   }
   runtimeDownload(libs.flywayMysql) {
+    isTransitive = false
+  }
+  runtimeDownload(libs.flywayPostgres) {
     isTransitive = false
   }
 }
@@ -53,10 +58,10 @@ tasks {
     }
   }
   val copyJar = register<FileCopyTask>("copyJar") {
-    fileToCopy.set(platformExtension.jarTask.flatMap { it.archiveFile })
-    destination.set(rootProject.layout.buildDirectory.dir("libs").flatMap {
+    fileToCopy = platformExtension.productionJar
+    destination = rootProject.layout.buildDirectory.dir("libs").flatMap {
       it.file(fileToCopy.map { file -> file.asFile.name })
-    })
+    }
   }
   build {
     dependsOn(copyJar)
@@ -65,30 +70,30 @@ tasks {
 
 val projectVersion = project.version as String
 
-modrinth {
-  projectId.set("QzooIsZI")
-  versionType.set(if (projectVersion.contains("-beta.")) "beta" else "release")
-  file.set(platformExtension.jarTask.flatMap { it.archiveFile })
-  changelog.set(releaseNotes)
-  token.set(providers.environmentVariable("MODRINTH_TOKEN"))
-  required.project("luckperms")
-  optional.project("miniplaceholders")
-  gameVersions.addAll("1.19.4", "1.20.1")
+publishMods.modrinth {
+  projectId = "QzooIsZI"
+  type = if (projectVersion.contains("-beta.")) ReleaseType.BETA else ReleaseType.STABLE
+  file = platformExtension.productionJar
+  changelog = releaseNotes
+  accessToken = providers.environmentVariable("MODRINTH_TOKEN")
+  requires("luckperms")
+  optional("miniplaceholders")
+  minecraftVersions.addAll(
+    "1.20.6",
+    "1.21",
+    "1.21.1",
+  )
 }
 
-val writeDeps = tasks.register("writeDependencies", WriteDependencies::class) {
-  tree.set(runtimeDownload.incoming.resolutionResult.rootComponent)
-  files.from(runtimeDownload)
-  outputFileName.set("carbon-dependencies.list")
-  outputDir.set(layout.buildDirectory.dir("generated/dependencyList"))
+tasks.writeDependencies {
+  outputFileName = "carbon-dependencies.txt"
   repos.add("https://repo.papermc.io/repository/maven-public/")
   repos.add("https://repo.maven.apache.org/maven2/")
 }
 
-sourceSets.main {
-  resources {
-    srcDir(writeDeps)
-  }
+gremlin {
+  defaultJarRelocatorDependencies = false
+  defaultGremlinRuntimeDependency = false
 }
 
 //val projectVersion = version as String

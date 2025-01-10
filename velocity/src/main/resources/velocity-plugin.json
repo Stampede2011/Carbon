@@ -5,7 +5,8 @@
     "description": "${description}",
     "url": "${url}",
     "authors": [
-        "Draycia"
+        "Draycia",
+        "jmp"
     ],
     "dependencies": [
         {
@@ -17,7 +18,7 @@
             "optional": true
         },
         {
-            "id": "unsignedvelocity",
+            "id": "signedvelocity",
             "optional": true
         }
     ],

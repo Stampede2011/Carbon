@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -31,6 +31,7 @@ import net.draycia.carbon.api.util.KeyedRenderer;
 import net.draycia.carbon.common.command.commands.WhisperCommand;
 import net.draycia.carbon.common.event.events.CarbonChatEventImpl;
 import net.draycia.carbon.common.messaging.packets.ChatMessagePacket;
+import net.draycia.carbon.common.messaging.packets.DisbandPartyPacket;
 import net.draycia.carbon.common.messaging.packets.InvalidatePartyInvitePacket;
 import net.draycia.carbon.common.messaging.packets.LocalPlayerChangePacket;
 import net.draycia.carbon.common.messaging.packets.LocalPlayersPacket;
@@ -92,8 +93,12 @@ public final class CarbonChatPacketHandler extends AbstractMessagingHandler {
         } else if (packet instanceof InvalidatePartyInvitePacket pkt) {
             this.partyInvites.handle(pkt);
             return true;
+        } else if (packet instanceof DisbandPartyPacket pkt) {
+            this.userManager.disbandPartyMessageReceived(pkt);
+            return true;
         } else if (packet instanceof ChatMessagePacket messagePacket) {
-            return this.handleMessagePacket(messagePacket);
+            this.handleMessagePacket(messagePacket);
+            return true; // Don't log an error when the channel doesn't exist
         } else if (packet instanceof LocalPlayersPacket playersPacket) {
             this.networkUsers.handlePacket(playersPacket);
             return true;

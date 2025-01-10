@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@ import org.checkerframework.framework.qual.DefaultQualifier;
 /**
  * Called whenever a player privately messages another player.
  *
- * @since 2.1.0
+ * @since 3.0.0
  */
 @DefaultQualifier(NonNull.class)
 public class CarbonPrivateChatEventImpl extends CancellableImpl implements CarbonPrivateChatEvent {

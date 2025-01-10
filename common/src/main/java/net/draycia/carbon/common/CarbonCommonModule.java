@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Provides;
+import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.TypeLiteral;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
@@ -39,19 +40,44 @@ import net.draycia.carbon.api.channels.ChannelRegistry;
 import net.draycia.carbon.api.event.CarbonEventHandler;
 import net.draycia.carbon.api.users.UserManager;
 import net.draycia.carbon.common.channels.CarbonChannelRegistry;
-import net.draycia.carbon.common.command.ArgumentFactory;
+import net.draycia.carbon.common.command.CarbonCommand;
 import net.draycia.carbon.common.command.ExecutionCoordinatorHolder;
+import net.draycia.carbon.common.command.ParserFactory;
 import net.draycia.carbon.common.command.argument.PlayerSuggestions;
+import net.draycia.carbon.common.command.commands.ClearChatCommand;
+import net.draycia.carbon.common.command.commands.ContinueCommand;
+import net.draycia.carbon.common.command.commands.DebugCommand;
+import net.draycia.carbon.common.command.commands.FilterCommand;
+import net.draycia.carbon.common.command.commands.HelpCommand;
+import net.draycia.carbon.common.command.commands.IgnoreCommand;
+import net.draycia.carbon.common.command.commands.IgnoreListCommand;
+import net.draycia.carbon.common.command.commands.JoinCommand;
+import net.draycia.carbon.common.command.commands.LeaveCommand;
+import net.draycia.carbon.common.command.commands.MuteCommand;
+import net.draycia.carbon.common.command.commands.MuteInfoCommand;
+import net.draycia.carbon.common.command.commands.NicknameCommand;
+import net.draycia.carbon.common.command.commands.PartyCommands;
+import net.draycia.carbon.common.command.commands.ReloadCommand;
+import net.draycia.carbon.common.command.commands.ReplyCommand;
+import net.draycia.carbon.common.command.commands.SpyCommand;
+import net.draycia.carbon.common.command.commands.ToggleMessagesCommand;
+import net.draycia.carbon.common.command.commands.UnignoreCommand;
+import net.draycia.carbon.common.command.commands.UnmuteCommand;
+import net.draycia.carbon.common.command.commands.UpdateUsernameCommand;
+import net.draycia.carbon.common.command.commands.WhisperCommand;
 import net.draycia.carbon.common.config.ConfigManager;
 import net.draycia.carbon.common.config.DatabaseSettings;
 import net.draycia.carbon.common.event.CarbonEventHandlerImpl;
 import net.draycia.carbon.common.listeners.DeafenHandler;
+import net.draycia.carbon.common.listeners.FilterHandler;
 import net.draycia.carbon.common.listeners.HyperlinkHandler;
 import net.draycia.carbon.common.listeners.IgnoreHandler;
 import net.draycia.carbon.common.listeners.ItemLinkHandler;
 import net.draycia.carbon.common.listeners.Listener;
 import net.draycia.carbon.common.listeners.MessagePacketHandler;
 import net.draycia.carbon.common.listeners.MuteHandler;
+import net.draycia.carbon.common.listeners.PartyChatSpyHandler;
+import net.draycia.carbon.common.listeners.PartyPingHandler;
 import net.draycia.carbon.common.listeners.PingHandler;
 import net.draycia.carbon.common.listeners.RadiusListener;
 import net.draycia.carbon.common.messages.CarbonMessageRenderer;
@@ -59,12 +85,14 @@ import net.draycia.carbon.common.messages.CarbonMessageSender;
 import net.draycia.carbon.common.messages.CarbonMessageSource;
 import net.draycia.carbon.common.messages.CarbonMessages;
 import net.draycia.carbon.common.messages.Option;
+import net.draycia.carbon.common.messages.RenderForTagResolver;
 import net.draycia.carbon.common.messages.SourcedReceiverResolver;
 import net.draycia.carbon.common.messages.StandardPlaceholderResolverStrategyButDifferent;
 import net.draycia.carbon.common.messages.placeholders.BooleanPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.ComponentPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.IntPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.KeyPlaceholderResolver;
+import net.draycia.carbon.common.messages.placeholders.LongPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.OptionPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.StringPlaceholderResolver;
 import net.draycia.carbon.common.messages.placeholders.UUIDPlaceholderResolver;
@@ -79,6 +107,7 @@ import net.draycia.carbon.common.users.db.DatabaseUserManager;
 import net.draycia.carbon.common.users.db.argument.BinaryUUIDArgumentFactory;
 import net.draycia.carbon.common.users.db.mapper.BinaryUUIDColumnMapper;
 import net.draycia.carbon.common.users.json.JSONUserManager;
+import net.draycia.carbon.common.util.CloudUtils;
 import net.draycia.carbon.common.util.ConcurrentUtil;
 import net.draycia.carbon.common.util.Exceptions;
 import net.draycia.carbon.common.util.FileUtil;
@@ -137,6 +166,7 @@ public final class CarbonCommonModule extends AbstractModule {
         final UUIDPlaceholderResolver<Audience> uuidPlaceholderResolver,
         final StringPlaceholderResolver<Audience> stringPlaceholderResolver,
         final IntPlaceholderResolver<Audience> intPlaceholderResolver,
+        final LongPlaceholderResolver<Audience> longPlaceholderResolver,
         final KeyPlaceholderResolver<Audience> keyPlaceholderResolver,
         final BooleanPlaceholderResolver<Audience> booleanPlaceholderResolver,
         final CarbonMessageSource carbonMessageSource,
@@ -153,6 +183,7 @@ public final class CarbonCommonModule extends AbstractModule {
             .weightedPlaceholderResolver(UUID.class, uuidPlaceholderResolver, 0)
             .weightedPlaceholderResolver(String.class, stringPlaceholderResolver, 0)
             .weightedPlaceholderResolver(Integer.class, intPlaceholderResolver, 0)
+            .weightedPlaceholderResolver(Long.class, longPlaceholderResolver, 0)
             .weightedPlaceholderResolver(Key.class, keyPlaceholderResolver, 0)
             .weightedPlaceholderResolver(Boolean.class, booleanPlaceholderResolver, 0)
             .weightedPlaceholderResolver(Option.class, new OptionPlaceholderResolver<>(), 0)
@@ -167,7 +198,8 @@ public final class CarbonCommonModule extends AbstractModule {
 
     @Override
     protected void configure() {
-        this.install(new FactoryModuleBuilder().build(ArgumentFactory.class));
+        this.install(new FactoryModuleBuilder().build(ParserFactory.class));
+        this.install(new FactoryModuleBuilder().build(RenderForTagResolver.Factory.class));
         this.install(factoryModule(PacketFactory.class));
         this.bind(ServerId.KEY).toInstance(UUID.randomUUID());
         this.bind(ChannelRegistry.class).to(CarbonChannelRegistry.class);
@@ -176,15 +208,50 @@ public final class CarbonCommonModule extends AbstractModule {
         this.bind(new TypeLiteral<UserManager<?>>() {}).to(PlatformUserManager.class);
         this.bind(new TypeLiteral<UserManagerInternal<?>>() {}).to(PlatformUserManager.class);
 
+        this.configureListeners();
+        this.configureCommands();
+    }
+
+    private void configureListeners() {
         final Multibinder<Listener> listeners = Multibinder.newSetBinder(this.binder(), Listener.class);
         listeners.addBinding().to(DeafenHandler.class);
+        listeners.addBinding().to(FilterHandler.class);
         listeners.addBinding().to(HyperlinkHandler.class);
         listeners.addBinding().to(IgnoreHandler.class);
         listeners.addBinding().to(ItemLinkHandler.class);
         listeners.addBinding().to(MessagePacketHandler.class);
         listeners.addBinding().to(MuteHandler.class);
+        listeners.addBinding().to(PartyChatSpyHandler.class);
+        listeners.addBinding().to(PartyPingHandler.class);
         listeners.addBinding().to(PingHandler.class);
         listeners.addBinding().to(RadiusListener.class);
+    }
+
+    private void configureCommands() {
+        this.requestStaticInjection(CloudUtils.class);
+
+        final Multibinder<CarbonCommand> commands = Multibinder.newSetBinder(this.binder(), CarbonCommand.class);
+        commands.addBinding().to(ClearChatCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(ContinueCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(DebugCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(FilterCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(HelpCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(IgnoreCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(MuteCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(MuteInfoCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(NicknameCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(ReloadCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(ReplyCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(SpyCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(ToggleMessagesCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(UnignoreCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(UnmuteCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(UpdateUsernameCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(WhisperCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(JoinCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(LeaveCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(IgnoreListCommand.class).in(Scopes.SINGLETON);
+        commands.addBinding().to(PartyCommands.class).in(Scopes.SINGLETON);
     }
 
     // Helper to create a FactoryProvider3 module

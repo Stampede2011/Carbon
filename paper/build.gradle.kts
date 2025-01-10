@@ -1,11 +1,14 @@
+import xyz.jpenilla.resourcefactory.paper.PaperPluginYaml.Load
 import xyz.jpenilla.runpaper.task.RunServer
 
 plugins {
   id("carbon.shadow-platform")
-  id("net.minecrell.plugin-yml.bukkit")
-  id("paper-plugin-yml")
+  id("xyz.jpenilla.resource-factory") version "1.2.0"
+  id("xyz.jpenilla.resource-factory-paper-convention") version "1.2.0"
+  id("xyz.jpenilla.resource-factory-bukkit-convention") version "1.2.0"
   id("xyz.jpenilla.run-paper")
   id("carbon.permissions")
+  id("carbon.configurable-plugins")
 }
 
 dependencies {
@@ -17,6 +20,7 @@ dependencies {
 
   // Commands
   implementation(libs.cloudPaper)
+  implementation(libs.cloudPaperSigned)
 
   // Misc
   implementation(libs.bstatsBukkit)
@@ -24,77 +28,92 @@ dependencies {
   // Plugins
   compileOnly(libs.placeholderapi)
   compileOnly(libs.miniplaceholders)
-  compileOnly(libs.essentialsXDiscord)
-  compileOnly(libs.discordsrv)
-
-  runtimeDownload(libs.guice) {
-    exclude("com.google.guava")
+  compileOnly(libs.essentialsXDiscord) {
+    exclude("org.spigotmc", "spigot-api")
   }
+  compileOnly(libs.discordsrv) {
+    isTransitive = false
+  }
+  compileOnly(libs.towny)
+  compileOnly(libs.mcmmo) {
+    isTransitive = false
+  }
+  compileOnly(libs.factionsUuid)
+}
+
+configurablePlugins {
+  dependency(libs.towny)
+  dependency(libs.mcmmo)
+  dependency(libs.factionsUuid)
 }
 
 tasks {
   shadowJar {
     relocateDependency("io.papermc.papertrail")
     relocateDependency("io.leangen.geantyref")
+    relocateDependency("xyz.jpenilla.reflectionremapper")
+    relocateDependency("net.fabricmc.mappingio")
     relocateCloud()
   }
-  runServer {
+  withType(RunServer::class).configureEach {
     version.set(libs.versions.minecraft)
     downloadPlugins {
-      url("https://download.luckperms.net/1515/bukkit/loader/LuckPerms-Bukkit-5.4.102.jar")
+      url("https://download.luckperms.net/1556/bukkit/loader/LuckPerms-Bukkit-5.4.141.jar")
+      github("MiniPlaceholders", "MiniPlaceholders", libs.versions.miniplaceholders.get(), "MiniPlaceholders-Paper-${libs.versions.miniplaceholders.get()}.jar")
+      github("MiniPlaceholders", "PlaceholderAPI-Expansion", "1.2.0", "PlaceholderAPI-Expansion-1.2.0.jar")
+      hangar("PlaceholderAPI", libs.versions.placeholderapi.get())
     }
   }
   register<RunServer>("runServer2") {
-    version.set(libs.versions.minecraft)
     pluginJars.from(shadowJar.flatMap { it.archiveFile })
     runDirectory.set(layout.projectDirectory.dir("run2"))
-  }
-  writeDependencies {
   }
 }
 
 runPaper.folia.registerTask()
 
-paper {
+paperPluginYaml {
   name = rootProject.name
-  version = project.version as String
   loader = "net.draycia.carbon.paper.CarbonPaperLoader"
   main = "net.draycia.carbon.paper.CarbonPaperBootstrap"
-  apiVersion = "1.19"
-  author = "Draycia"
-  loadAfter += PaperPluginDescription.LoadInfo("LuckPerms")
-  loadAfter += PaperPluginDescription.LoadInfo("EssentialsDiscord")
-  loadAfter += PaperPluginDescription.LoadInfo("DiscordSRV")
-  loadAfter += PaperPluginDescription.LoadInfo("PlaceholderAPI")
-  dependencies += PaperPluginDescription.Dependency("LuckPerms", true)
-  dependencies += PaperPluginDescription.Dependency("PlaceholderAPI", false)
-  dependencies += PaperPluginDescription.Dependency("EssentialsDiscord", false)
-  dependencies += PaperPluginDescription.Dependency("DiscordSRV", false)
-  dependencies += PaperPluginDescription.Dependency("MiniPlaceholders", false)
+  apiVersion = "1.20"
+  authors = listOf("Draycia", "jmp")
   website = GITHUB_REPO_URL
   foliaSupported = true
+
+  dependencies {
+    server("LuckPerms", Load.BEFORE, true)
+    server("PlaceholderAPI", Load.BEFORE, false)
+    server("EssentialsDiscord", Load.BEFORE, false)
+    server("DiscordSRV", Load.BEFORE, false)
+    server("MiniPlaceholders", Load.BEFORE, false)
+
+    // Integrations
+    server("Towny", Load.BEFORE, false)
+    server("mcMMO", Load.BEFORE, false)
+    server("Factions", Load.BEFORE, false)
+  }
 }
 
-bukkit {
+bukkitPluginYaml {
   name = rootProject.name
-  version = project.version as String
-  main = "net.draycia.carbon.libs.io.papermc.papertrail.RequiresPaperPlugins"
-  apiVersion = "1.19"
-  author = "Draycia"
+  main = "carbonchat.libs.io.papermc.papertrail.RequiresPaperPlugins"
+  apiVersion = "1.20"
+  authors = listOf("Draycia", "jmp")
   website = GITHUB_REPO_URL
 }
 
 carbonPermission.permissions.get().forEach {
-  setOf(bukkit.permissions, paper.permissions).forEach { container ->
+  setOf(bukkitPluginYaml.permissions, paperPluginYaml.permissions).forEach { container ->
     container.register(it.string) {
       description = it.description
-      childrenMap = it.children
+      it.children?.let { children.putAll(it) }
     }
   }
 }
 
-modrinth {
-  loaders.addAll("paper", "folia")
+publishMods.modrinth {
+  modLoaders.addAll("paper", "folia")
 }
 
 configurations.runtimeDownload {

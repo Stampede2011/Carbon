@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.api.users.UserManager;
+import net.draycia.carbon.common.messaging.packets.DisbandPartyPacket;
 import net.draycia.carbon.common.messaging.packets.PartyChangePacket;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.DefaultQualifier;
@@ -45,4 +46,6 @@ public interface UserManagerInternal<C extends CarbonPlayer> extends UserManager
     void disbandParty(UUID id);
 
     void partyChangeMessageReceived(PartyChangePacket pkt);
+
+    void disbandPartyMessageReceived(DisbandPartyPacket pkt);
 }

@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -39,10 +39,10 @@ import net.draycia.carbon.common.listeners.ChatListenerInternal;
 import net.draycia.carbon.common.messages.CarbonMessages;
 import net.draycia.carbon.velocity.CarbonVelocityBootstrap;
 import net.kyori.adventure.audience.Audience;
+import org.apache.logging.log4j.Logger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
-import org.slf4j.Logger;
 
 @DefaultQualifier(NonNull.class)
 public final class VelocityChatListener extends ChatListenerInternal implements VelocityListener<PlayerChatEvent> {
@@ -74,7 +74,7 @@ public final class VelocityChatListener extends ChatListenerInternal implements 
 
     @Override
     public void register(final EventManager eventManager, final CarbonVelocityBootstrap bootstrap) {
-        eventManager.register(bootstrap, PlayerChatEvent.class, PostOrder.LAST, this);
+        eventManager.register(bootstrap, PlayerChatEvent.class, PostOrder.LATE, this);
     }
 
     @Override
@@ -100,7 +100,7 @@ public final class VelocityChatListener extends ChatListenerInternal implements 
                     where this function is not supported.
                     
                     If you want to keep this function working,
-                    install UnSignedVelocity.
+                    install SignedVelocity.
                     ==================================================
                     """, player.getUsername()
                 );

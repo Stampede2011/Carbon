@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -56,7 +56,7 @@ public final class CarbonPlayerPaper extends WrappedCarbonPlayer implements Forw
         super(carbonPlayerCommon);
 
         if (config.primaryConfig().nickname().useCarbonNicknames()) {
-            this.player().ifPresent(this.applyDisplayNameToBukkit(carbonPlayerCommon.nickname()));
+            this.player().ifPresent(this.applyDisplayNameToBukkit(this.hasNickname() ? this.displayName() : null));
         }
     }
 
@@ -110,13 +110,16 @@ public final class CarbonPlayerPaper extends WrappedCarbonPlayer implements Forw
     public void nickname(final @Nullable Component nickname) {
         super.nickname(nickname);
 
-        this.player().ifPresent(this.applyDisplayNameToBukkit(nickname));
+        this.player().ifPresent(this.applyDisplayNameToBukkit(nickname == null ? null : this.displayName()));
     }
 
     private Consumer<Player> applyDisplayNameToBukkit(final @Nullable Component displayName) {
         return bukkit -> this.carbonPlayerCommon.schedule(() -> {
             bukkit.displayName(displayName);
-            bukkit.playerListName(displayName);
+
+            if (this.carbonPlayerCommon.configManager().primaryConfig().nickname().updateTabList()) {
+                bukkit.playerListName(displayName);
+            }
         });
     }
 

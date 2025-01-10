@@ -4,20 +4,19 @@ plugins {
 
 repositories {
   gradlePluginPortal()
-  mavenCentral()
-  maven("https://repo.stellardrift.ca/repository/snapshots/")
+  maven("https://oss.sonatype.org/content/repositories/snapshots/") {
+    mavenContent { snapshotsOnly() }
+  }
 }
 
 dependencies {
   implementation(libs.shadow)
   implementation(libs.indraCommon)
   implementation(libs.indraLicenseHeader)
-  implementation(libs.licenser)
-  implementation(libs.pluginYml)
-  implementation(libs.minotaur)
-  implementation("org.spongepowered:configurate-yaml:4.0.0")
-  compileOnly("com.fasterxml.jackson.core:jackson-core:2.14.0")
-  compileOnly("com.fasterxml.jackson.core:jackson-annotations:2.14.0")
+  implementation(libs.mod.publish.plugin)
+  implementation(libs.configurateYaml)
+  implementation(libs.gremlin.gradle)
+  implementation(libs.run.task)
 
   // https://github.com/gradle/gradle/issues/15383#issuecomment-779893192
   implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))

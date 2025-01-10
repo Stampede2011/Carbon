@@ -1,0 +1,57 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:base"
+    ],
+    "ignoreDeps": [
+        "quiet-fabric-loom",
+        "com.mojang:minecraft",
+        "com.google.code.gson:gson",
+        "com.google.guava:guava",
+        "io.netty:netty-all",
+        "org.apache.logging.log4j:log4j-bom"
+    ],
+    "labels": [
+        "dependencies"
+    ],
+    "packageRules": [
+        {
+            "description": "Correct Fabric API version handling",
+            "matchPackageNames": ["net.fabricmc.fabric-api:fabric-api", "net.fabricmc.fabric-api:fabric-api-deprecated"],
+            "versioning": "regex:^(?<major>\\d+)(\\.(?<minor>\\d+))?(\\.(?<patch>\\d+))?(?:\\+(?<compatibility>.*))?$"
+        },
+        {
+            "description": "Correct FactionsUUID version handling",
+            "matchPackageNames": ["com.massivecraft:Factions"],
+            "versioning": "regex:^1\\.6\\.9\\.5\\-U(?<major>\\d+)(\\.(?<minor>\\d+))?(\\.(?<patch>\\d+))?$"
+        },
+        {
+            "description": "Towny version handling",
+            "matchPackageNames": ["com.palmergames.bukkit.towny:towny"],
+            "versioning": "regex:^0\\.(?<major>\\d+)(\\.(?<minor>\\d+))?(\\.(?<patch>\\d+))?$"
+        },
+        {
+            "description": "Ignore Towny patch updates",
+            "matchPackageNames": ["com.palmergames.bukkit.towny:towny"],
+            "matchUpdateTypes": "patch",
+            "enabled": false
+        },
+        {
+            "matchManagers": ["github-actions", "gradle-wrapper"],
+            "groupName": "gradle and github actions"
+        },
+        {
+            "matchDepTypes": ["plugin"],
+            "groupName": "gradle and github actions"
+        },
+        {
+            "matchPaths": ["build-logic/*", "buildSrc/*"],
+            "groupName": "gradle and github actions"
+        }
+    ],
+    "schedule": [
+        "before 4am on Monday"
+    ],
+    "semanticCommitType": "build",
+    "commitMessagePrefix": "chore(deps): "
+}

@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -21,10 +21,10 @@ package net.draycia.carbon.common.channels;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import net.draycia.carbon.api.channels.ChannelPermissions;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.api.users.Party;
 import net.draycia.carbon.common.channels.messages.ConfigChannelMessageSource;
@@ -33,41 +33,36 @@ import net.draycia.carbon.common.users.WrappedCarbonPlayer;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
+import static net.draycia.carbon.api.channels.ChannelPermissionResult.channelPermissionResult;
+
 @ConfigSerializable
 @DefaultQualifier(NonNull.class)
 public class PartyChatChannel extends ConfigChatChannel {
 
+    public static final String FILE_NAME = "partychat.conf";
+
     public PartyChatChannel() {
         this.key = Key.key("carbon", "partychat");
+        this.commandAliases = List.of("pc");
         this.messageSource = new ConfigChannelMessageSource();
         this.messageSource.defaults = Map.of(
             "default_format", "(party: <party_name>) <display_name>: <message>",
-            "console", "[party: <party_name>] <username> - <uuid>: <message>"
-        );
-        this.messageSource.locales = Map.of(
-            Locale.US, Map.of("default_format", "(party: <party_name>) <display_name>: <message>")
+            "console", "[party: <party_name>] <username>: <message>"
         );
     }
 
     @Override
-    public ChannelPermissionResult speechPermitted(final CarbonPlayer player) {
-        return player.party().join() != null
-            ? ChannelPermissionResult.allowed()
-            : ChannelPermissionResult.denied(Component.empty());
-    }
-
-    @Override
-    public ChannelPermissionResult hearingPermitted(final CarbonPlayer player) {
-        return player.party().join() != null
-            ? ChannelPermissionResult.allowed()
-            : ChannelPermissionResult.denied(Component.empty());
+    public ChannelPermissions permissions() {
+        return ChannelPermissions.uniformDynamic(player -> channelPermissionResult(
+            player.party().join() != null,
+            () -> this.messages.cannotUsePartyChannel(player)
+        ));
     }
 
     @Override
@@ -76,7 +71,7 @@ public class PartyChatChannel extends ConfigChatChannel {
         final @Nullable UUID party = wrapped.partyId();
         if (party == null) {
             if (sender.online()) {
-                sender.sendMessage(Component.text("You must join a party to use this channel.", NamedTextColor.RED));
+                sender.sendMessage(this.messages.cannotUsePartyChannel(sender));
             }
             return new ArrayList<>();
         }

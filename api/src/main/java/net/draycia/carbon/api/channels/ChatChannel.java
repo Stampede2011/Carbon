@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -20,18 +20,13 @@
 package net.draycia.carbon.api.channels;
 
 import java.util.List;
-import java.util.function.Supplier;
 import net.draycia.carbon.api.users.CarbonPlayer;
 import net.draycia.carbon.api.util.ChatComponentRenderer;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Keyed;
-import net.kyori.adventure.text.Component;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
-
-import static net.kyori.adventure.text.Component.empty;
 
 /**
  * ChatChannel interface, supplies a formatter and filters recipients.<br>
@@ -43,22 +38,12 @@ import static net.kyori.adventure.text.Component.empty;
 public interface ChatChannel extends Keyed, ChatComponentRenderer {
 
     /**
-     * Checks if the player may send messages in this channel.
+     * Returns the permissions handler for the channel.
      *
-     * @param carbonPlayer the player attempting to speak
-     * @return if the player may speak
-     * @since 2.0.0
+     * @return the permissions handler
+     * @since 3.0.0
      */
-    ChannelPermissionResult speechPermitted(CarbonPlayer carbonPlayer);
-
-    /**
-     * Checks if the player may receive messages from this channel.
-     *
-     * @param player the player that's receiving messages
-     * @return if the player may receive messages
-     * @since 2.0.0
-     */
-    ChannelPermissionResult hearingPermitted(CarbonPlayer player);
+    ChannelPermissions permissions();
 
     /**
      * Returns a list of all recipients that will receive messages from the sender.
@@ -102,21 +87,12 @@ public interface ChatChannel extends Keyed, ChatComponentRenderer {
     List<String> commandAliases();
 
     /**
-     * The base permission players must have in order to use the channel.<br>
-     * Null return means players do not need any permission.
-     *
-     * @return the permission required to use the channel, or null
-     * @since 2.0.7
-     */
-    @MonotonicNonNull String permission();
-
-    /**
      * The distance from the sender players must be to receive chat messages.<br>
      * Return of '0' means players must be in the same world/server.<br>
      * Return of '-1' means there is no radius.
      *
      * @return the channel radius
-     * @since 2.1.0
+     * @since 3.0.0
      */
     double radius();
 
@@ -124,60 +100,36 @@ public interface ChatChannel extends Keyed, ChatComponentRenderer {
      * If the empty receipt message should be sent to the sender.
      *
      * @return Returns true if the channel should display a message when a player is out of range.
-     * @since 2.1.0
+     * @since 3.0.0
      */
     boolean emptyRadiusRecipientsMessage();
 
     /**
-     * Represents the result of a channel permission check.
+     * The time in milliseconds between player messages.
+     * -1 and 0 disable the cooldown for this channel.
      *
-     * @since 2.0.0
+     * @return The message cooldown in millis.
+     * @since 3.0.0
      */
-    record ChannelPermissionResult(boolean permitted, Component reason) {
+    long cooldown();
 
-        private static final ChannelPermissionResult ALLOWED =
-            new ChannelPermissionResult(true, empty());
+    /**
+     * The epoch time (millis) when the player's cooldown expires.
+     *
+     * @param player The player
+     * @return The epoch time (millis) when the player's cooldown expires.
+     * @since 3.0.0
+     */
+    long playerCooldown(CarbonPlayer player);
 
-        /**
-         * Returns a result denoting that the player is permitted for the action.
-         *
-         * @return that the action is allowed
-         * @since 2.0.0
-         */
-        public static ChannelPermissionResult allowed() {
-            return ALLOWED;
-        }
-
-        /**
-         * Returns a result denoting that the action is denied for the player.
-         *
-         * @param reason the reason the action was denied
-         * @return that the action is denied
-         * @since 2.0.0
-         */
-        public static ChannelPermissionResult denied(final Component reason) {
-            return new ChannelPermissionResult(false, reason);
-        }
-
-        /**
-         * If True is supplied, returns a result denoting that the action was allowed. Otherwise, a result denoting that the action was denied.
-         *
-         * @param reason the reason, if any, that the action was allowed
-         * @param supplier the supplier to check
-         * @return an allowed result if true, otherwise a denied result
-         * @since 2.0.0
-         */
-        public static ChannelPermissionResult allowedIf(
-            final Component reason,
-            final Supplier<Boolean> supplier
-        ) {
-            if (supplier.get()) {
-                return ALLOWED;
-            } else {
-                return denied(reason);
-            }
-        }
-
-    }
+    /**
+     * Starts the cooldown timer for the specified player. Duration will be the channel cooldown.
+     * Returns the player's old cooldown time, if they have one.
+     *
+     * @param player The player
+     * @return The player's old cooldown, or 0 if they don't have one.
+     * @since 3.0.0
+     */
+    long startCooldown(CarbonPlayer player);
 
 }

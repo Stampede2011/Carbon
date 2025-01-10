@@ -1,7 +1,7 @@
 /*
  * CarbonChat
  *
- * Copyright (c) 2023 Josua Parks (Vicarious)
+ * Copyright (c) 2024 Josua Parks (Vicarious)
  *                    Contributors
  *
  * This program is free software: you can redistribute it and/or modify
@@ -48,7 +48,8 @@ public final class PlayerRowMapper implements RowMapper<CarbonPlayerCommon> {
             uuid.map(rs, "whisperreplytarget", ctx),
             rs.getBoolean("spying"),
             rs.getBoolean("ignoringdms"),
-            uuid.map(rs, "party", ctx)
+            uuid.map(rs, "party", ctx),
+            rs.getBoolean("applycustomfilters")
         );
     }
 
